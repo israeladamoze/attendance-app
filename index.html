@@ -11,10 +11,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
+<title>שעון נוכחות</title>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
 </head>
 <body>
-<title>שעון נוכחות</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap">
@@ -101,16 +101,18 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .field { display: grid; gap: 5px; min-width: 0; }
 .field > span { font-size: 13px; font-weight: 500; color: var(--muted); }
 input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="month"], select, textarea {
-  width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 10px 12px; min-height: 44px; }
+  width: 100%; min-width: 0; max-width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 10px 12px; min-height: 44px; }
+input[type="time"], input[type="date"], input[type="month"] { display: block; -webkit-appearance: none; appearance: none; text-align: right; padding-inline: 8px; }
+body.locked { overflow: hidden; }
 textarea { min-height: 64px; resize: vertical; }
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .money { position: relative; }
 .money input { padding-left: 34px; direction: ltr; text-align: right; font-family: var(--font-num); }
 .money::after { content: "₪"; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .hint { font-size: 13px; color: var(--muted); }
-.hint.warn { color: var(--warn); }
-.hint.bad { color: var(--bad); }
+.hint.warn, .hint .warn { color: var(--warn); }
+.hint.bad, .hint .bad { color: var(--bad); }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 9px 14px; cursor: pointer; font-weight: 500; min-height: 42px; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 .btn.danger { color: var(--bad); }
@@ -180,7 +182,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .tabs button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tabs button[aria-current="page"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
 
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 60; background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); direction: rtl; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 35; background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); direction: rtl; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
 .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .wd { display: flex; flex-wrap: wrap; gap: 6px; }
 .wd label { border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-size: 14px; }
@@ -329,9 +331,17 @@ function info(iso) {
   var r = rec(iso), hol = holidayOf(iso), work = isWorkday(iso);
   var type = r && r.type ? r.type : (hol && hol.kind === "holiday" ? "holiday" : (work ? null : "rest"));
   var past = iso < todayIso();
-  var missingOut = !!(r && r.in && !r.out && (type === "office" || type === "home") && iso < todayIso());
+  var missingOut = !!(r && r.in && !r.out && (type === "office" || type === "home") && iso < todayIso() && iso !== openPrevShift());
   return { iso: iso, r: r, hol: hol, work: work, type: type, mins: minutesOf(r), missingOut: missingOut,
            unreported: !r && work && !(hol && hol.kind === "holiday") && past };
+}
+// A shift opened yesterday (e.g. 22:00) that is still running after midnight.
+function openPrevShift() {
+  var t = todayIso(), y = addDays(t, -1), ry = rec(y), rt = rec(t);
+  if (rt && rt.in) return null;
+  if (!ry || !ry.in || ry.out) return null;
+  var inM = hmToMin(ry.in); if (inM == null) return null;
+  return (1440 - inM + hmToMin(nowHM())) <= 20 * 60 ? y : null;
 }
 function setRec(iso, patch) {
   var r = Object.assign({}, S.days[iso] || {}, patch, { updatedAt: new Date().toISOString() });
@@ -578,11 +588,11 @@ function render() {
 }
 
 function banners() {
-  var out = [], t = todayIso();
+  var out = [], t = todayIso(), prevOpen = openPrevShift();
   // missing check-out in last 14 days
   for (var i = 1; i <= 14; i++) {
     var iso = addDays(t, -i), x = info(iso);
-    if (x.missingOut) { out.push('<div class="banner warn"><span>חסרה שעת יציאה ב<b>' + esc(longDate(iso)) + '</b>.</span><button class="btn" type="button" data-edit="' + iso + '">להשלמה</button></div>'); break; }
+    if (x.missingOut && iso !== prevOpen) { out.push('<div class="banner warn"><span>חסרה שעת יציאה ב<b>' + esc(longDate(iso)) + '</b>.</span><button class="btn" type="button" data-edit="' + iso + '">להשלמה</button></div>'); break; }
   }
   // end-of-month export reminder
   var tm = ymOf(t), lastWork = null, n = daysInMonth(+tm.slice(0, 4), +tm.slice(5) - 1);
@@ -614,6 +624,15 @@ function viewToday() {
       (x.hol.kind === "holiday" && x.type === "holiday" ? '<button class="btn" type="button" data-settype="office">עבדתי היום</button>' : "") + "</div>";
   }
   html += banners();
+  var prev = openPrevShift();
+  if (prev) {
+    var rp = rec(prev), runP = 1440 - hmToMin(rp.in) + hmToMin(nowHM());
+    html += '<section class="card" aria-label="משמרת פתוחה"><span class="label">משמרת פתוחה מ' + esc(longDate(prev)) + '</span>' +
+      '<div class="stamps"><div class="stamp filled"><span class="label">כניסה</span><span class="t num">' + esc(rp.in) + '</span></div>' +
+      '<div class="stamp"><span class="label">יציאה</span><span class="t num empty">--:--</span></div></div>' +
+      '<button class="punch out" type="button" id="punch-out-prev">יציאה · <span class="num">' + nowHM() + '</span></button>' +
+      '<div class="total"><span class="muted">זמן מאז הכניסה</span><span class="big num">' + fmtMin(runP) + '</span></div></section>';
+  }
   var showWork = (x.type === "office" || x.type === "home" || (!x.type) || (x.type === "rest" && r.in));
   if (x.type === "rest" && !r.in) {
     html += '<section class="card"><div class="row spread"><span class="pill" style="--tc:var(--t-rest)"><span class="dot"></span>יום מנוחה</span><button class="btn" type="button" data-settype="office">עבדתי היום</button></div></section>';
@@ -633,7 +652,8 @@ function viewToday() {
         '<div class="stamp' + (r.in ? " filled" : "") + '"><span class="label">כניסה</span><span class="t num' + (r.in ? "" : " empty") + '">' + (r.in || "--:--") + "</span></div>" +
         '<div class="stamp' + (r.out ? " filled" : "") + '"><span class="label">יציאה</span><span class="t num' + (r.out ? "" : " empty") + '">' + (r.out || "--:--") + "</span></div>" +
       "</div>" +
-      (!r.in ? '<button class="punch" type="button" id="punch-in">כניסה · <span class="num">' + nowHM() + "</span></button>"
+      (!r.in && prev ? '<span class="hint">כדי להתחיל משמרת חדשה, רשמו קודם יציאה מהמשמרת של אתמול.</span>'
+        : !r.in ? '<button class="punch" type="button" id="punch-in">כניסה · <span class="num">' + nowHM() + "</span></button>"
         : !r.out ? '<button class="punch out" type="button" id="punch-out">יציאה · <span class="num">' + nowHM() + "</span></button>" : "") +
       '<div class="total"><span class="muted">' + (r.out ? 'סה"כ היום' : r.in ? "זמן מאז הכניסה" : 'סה"כ היום') + '</span><span class="big num">' + (r.out ? fmtMin(x.mins) : running != null ? fmtMin(running) : "0:00") + "</span></div>" +
       '<div class="row"><button class="btn link" type="button" data-edit="' + t + '">עריכה ידנית של השעות</button></div>' +
@@ -758,7 +778,7 @@ function viewSettings() {
 /* ---------- edit sheet ---------- */
 var editIso = null, editConfirm = null, editInitial = null;
 function openEdit(iso) { editIso = iso; editConfirm = null; renderSheet(); editInitial = JSON.stringify(readEdit()); }
-function closeEdit() { editIso = null; editInitial = null; $("#sheet-root").innerHTML = ""; }
+function closeEdit() { editIso = null; editInitial = null; $("#sheet-root").innerHTML = ""; document.body.classList.remove("locked"); }
 function editDirty() { return !!(editIso && $("#e-type") && editInitial !== JSON.stringify(readEdit())); }
 function requestClose() {
   if (!editDirty()) { closeEdit(); return; }
@@ -784,6 +804,7 @@ function renderSheet() {
     '<div class="row spread"><button class="btn danger" type="button" id="e-clear">ניקוי היום</button><button class="btn primary" type="button" id="e-save">שמירה</button></div>' +
     "</div></div>";
   $("#sheet-root").innerHTML = html;
+  document.body.classList.add("locked");
   syncEditFields();
 }
 function syncEditFields() {
@@ -834,6 +855,15 @@ function setTodayType(type) {
 }
 function punch(which) {
   var t = todayIso(), x = info(t), r = x.r || {}, now = nowHM();
+  if (which === "out-prev") {
+    var p = openPrevShift();
+    if (!p) { render(); return; }
+    setRec(p, { out: now, overnight: true });
+    var mp = minutesOf(rec(p));
+    render();
+    toast("נרשמה יציאה ב-" + now + " למשמרת של " + shortDate(p) + (mp != null && mp > 16 * 60 ? ". יום ארוך מ-16 שעות, כדאי לבדוק את שעת הכניסה." : ""));
+    return;
+  }
   if (which === "in") setRec(t, { type: x.type === "home" ? "home" : "office", in: now });
   else {
     var overnight = hmToMin(now) < hmToMin(r.in);
@@ -923,6 +953,7 @@ document.addEventListener("click", function (e) {
   switch (id) {
     case "punch-in": punch("in"); break;
     case "punch-out": punch("out"); break;
+    case "punch-out-prev": punch("out-prev"); break;
     case "lunch-save": saveLunch(); break;
     case "quick-backup": doBackup(); break;
     case "m-prev": case "m-next":
@@ -946,9 +977,12 @@ document.addEventListener("click", function (e) {
     case "e-save": saveEdit(false); break;
     case "e-yes":
       if (editConfirm && editConfirm.act === "discard") { closeEdit(); break; }
+      if (editConfirm && editConfirm.act === "clear") { delete S.days[editIso]; save(); closeEdit(); render(); toast("היום נוקה"); break; }
       var keep = readEdit(); editConfirm = null; restoreEdit(keep); saveEdit(true); break;
     case "e-no": var k2 = readEdit(); editConfirm = null; renderSheet(); restoreEdit(k2); break;
-    case "e-clear": delete S.days[editIso]; save(); closeEdit(); render(); toast("היום נוקה"); break;
+    case "e-clear":
+      if (!S.days[editIso]) { closeEdit(); break; }
+      var k3 = readEdit(); editConfirm = { text: "למחוק את כל הנתונים של היום הזה?", yes: "מחיקה", act: "clear" }; renderSheet(); restoreEdit(k3); break;
   }
 });
 document.addEventListener("change", function (e) {
@@ -961,8 +995,15 @@ document.addEventListener("input", function (e) {
 });
 document.addEventListener("keydown", function (e) { if (e.key === "Escape" && editIso) requestClose(); });
 
-setInterval(function () { if (view === "today" && !editIso && document.activeElement && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) render(); }, 30000);
-document.addEventListener("visibilitychange", function () { if (!document.hidden && view === "today" && !editIso) render(); });
+// Unsaved text in today's lunch fields must survive the periodic refresh.
+function todayLunchDirty() {
+  var a = $("#lunch-today"), b = $("#lunchnote-today"); if (!a || !b) return false;
+  var r = rec(todayIso()) || {};
+  return a.value !== String(typeof r.lunch === "number" ? r.lunch : "") || b.value.trim() !== (r.lunchNote || "");
+}
+function canAutoRefresh() { return view === "today" && !editIso && !todayLunchDirty() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)); }
+setInterval(function () { if (canAutoRefresh()) render(); }, 30000);
+document.addEventListener("visibilitychange", function () { if (!document.hidden && canAutoRefresh()) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:" && !inViewer) {
   window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
