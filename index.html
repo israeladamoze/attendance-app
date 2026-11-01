@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e6a61">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="נוכחות">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<title>שעון נוכחות</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow time-card column, stamp slots for in/out, bottom tab bar on every width */
+:root {
+  --bg: #eef2f1;
+  --surface: #ffffff;
+  --sunk: #f5f8f7;
+  --ink: #15201e;
+  --muted: #5a6a67;
+  --line: #d6dfdd;
+  --accent: #0e6a61;
+  --accent-ink: #ffffff;
+  --warn: #9a6a00;
+  --warn-bg: #fff4d4;
+  --bad: #b3261e;
+  --t-office: #0e6a61;
+  --t-home: #2e7d32;
+  --t-vacation: #2a5fb0;
+  --t-sick: #c0601a;
+  --t-holiday: #7647b0;
+  --t-rest: #8a9694;
+  --font-body: "IBM Plex Sans Hebrew", "Segoe UI", "Arial Hebrew", Arial, sans-serif;
+  --font-num: "IBM Plex Sans Hebrew", "Segoe UI", Arial, sans-serif;
+  --r: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #161f1e; --sunk: #111918; --ink: #e4ecea; --muted: #9aaaa7;
+    --line: #2a3634; --accent: #4fb5a9; --accent-ink: #062320; --warn: #f0c35a; --warn-bg: #2e2715; --bad: #ff8a80;
+    --t-office: #4fb5a9; --t-home: #6cc070; --t-vacation: #74a3ea; --t-sick: #f0a060; --t-holiday: #b394e6; --t-rest: #75827f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #161f1e; --sunk: #111918; --ink: #e4ecea; --muted: #9aaaa7;
+  --line: #2a3634; --accent: #4fb5a9; --accent-ink: #062320; --warn: #f0c35a; --warn-bg: #2e2715; --bad: #ff8a80;
+  --t-office: #4fb5a9; --t-home: #6cc070; --t-vacation: #74a3ea; --t-sick: #f0a060; --t-holiday: #b394e6; --t-rest: #75827f;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--font-body); font-size: 15px; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.app { direction: rtl; max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px calc(96px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 6px; }
+.head h1 { font-size: 22px; font-weight: 700; }
+.head .sub { color: var(--muted); font-size: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
+.muted { color: var(--muted); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.spread { justify-content: space-between; }
+
+/* banners */
+.banner { border-radius: var(--r); padding: 12px 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 14px; border: 1px solid; }
+.banner.hol { background: color-mix(in srgb, var(--t-holiday) 12%, var(--surface)); border-color: color-mix(in srgb, var(--t-holiday) 40%, var(--line)); }
+.banner.info { background: var(--sunk); border-color: var(--line); }
+.banner.warn { background: var(--warn-bg); border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); }
+.banner b { font-weight: 600; }
+
+/* day-type segmented control */
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.seg button { border: 1px solid var(--line); background: var(--sunk); border-radius: 10px; padding: 9px 4px; cursor: pointer; font-weight: 500; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--tc) 16%, var(--surface)); border-color: var(--tc); color: var(--ink); font-weight: 600; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--tc); flex: none; }
+
+/* time card */
+.stamps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stamp { border: 1.5px dashed var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; background: var(--sunk); }
+.stamp.filled { border-style: solid; border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); background: var(--surface); }
+.stamp .t { font-size: 30px; font-weight: 600; line-height: 1.15; text-align: right; }
+.stamp .t.empty { color: var(--muted); opacity: .55; }
+.punch { width: 100%; border: 0; border-radius: 14px; padding: 18px; font-size: 20px; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; gap: 10px; }
+.punch.out { background: var(--ink); color: var(--surface); }
+.punch:active { transform: translateY(1px); }
+.total { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.total .big { font-size: 22px; font-weight: 600; }
+
+/* fields */
+.field { display: grid; gap: 5px; min-width: 0; }
+.field > span { font-size: 13px; font-weight: 500; color: var(--muted); }
+input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="month"], select, textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 10px 12px; min-height: 44px; }
+textarea { min-height: 64px; resize: vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.money { position: relative; }
+.money input { padding-left: 34px; direction: ltr; text-align: right; font-family: var(--font-num); }
+.money::after { content: "₪"; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hint { font-size: 13px; color: var(--muted); }
+.hint.warn { color: var(--warn); }
+.hint.bad { color: var(--bad); }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 9px 14px; cursor: pointer; font-weight: 500; min-height: 42px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.danger { color: var(--bad); }
+.btn.link { border: 0; background: none; padding: 4px 0; min-height: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* month stats */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--sunk); border-radius: 10px; padding: 10px; display: grid; gap: 2px; min-width: 0; }
+.stat .v { font-size: 18px; font-weight: 600; text-align: right; }
+.stat .k { font-size: 12px; color: var(--muted); }
+
+/* calendar */
+.monthnav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.monthnav h2 { font-size: 18px; }
+.iconbtn { width: 42px; height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 18px; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal .dow { font-size: 12px; color: var(--muted); text-align: center; padding-bottom: 2px; font-weight: 500; }
+.day { position: relative; aspect-ratio: 1 / 1.08; max-width: 100%; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; padding: 4px; display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; text-align: right; min-width: 0; overflow: hidden; }
+.day .n { font-family: var(--font-num); font-size: 13px; font-weight: 600; }
+.day .h { font-family: var(--font-num); font-size: 10.5px; color: var(--muted); direction: ltr; text-align: left; margin-top: auto; }
+.day .h:empty { display: none; }
+.day .hn { font-size: 9.5px; line-height: 1.1; font-weight: 600; color: var(--t-holiday); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; margin-top: auto; }
+.day .hn + .h { margin-top: 1px; }
+.day .hn.info { color: var(--muted); font-weight: 500; }
+@media (min-width: 520px) { .day .hn { font-size: 11px; } }
+.holist { display: grid; gap: 4px; font-size: 14px; }
+.holist div { display: flex; gap: 10px; align-items: baseline; }
+.holist .num { color: var(--muted); font-size: 13px; min-width: 40px; }
+.holist .info { color: var(--muted); }
+.day.typed { background: color-mix(in srgb, var(--tc) 15%, var(--surface)); border-color: color-mix(in srgb, var(--tc) 45%, var(--line)); }
+.day.rest { background: var(--sunk); color: var(--muted); }
+.day.missing { border-style: dashed; }
+.day.alert { box-shadow: inset 0 0 0 2px var(--warn); }
+.day.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.day .star { position: absolute; top: 4px; left: 5px; color: var(--t-holiday); font-size: 11px; line-height: 1; }
+.day.blank { visibility: hidden; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* list of days in month */
+.dlist { display: grid; gap: 0; }
+.ditem { display: grid; grid-template-columns: 54px 1fr auto; gap: 10px; align-items: center; padding: 9px 2px; border-bottom: 1px solid var(--line); cursor: pointer; background: none; border-inline: 0; border-top: 0; text-align: right; width: 100%; }
+.ditem:last-child { border-bottom: 0; }
+.ditem .d { font-weight: 600; }
+.ditem .d small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--tc) 15%, var(--surface)); color: var(--ink); }
+
+/* table */
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tbl td { padding: 7px 2px; border-bottom: 1px solid var(--line); }
+.tbl td:last-child { text-align: left; }
+.tbl tr:last-child td { border-bottom: 0; }
+
+/* sheet (edit day) */
+.scrim { position: fixed; inset: 0; background: rgba(8, 14, 13, .45); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { direction: rtl; background: var(--surface); width: 100%; max-width: 560px; max-height: 92%; overflow: auto; border-radius: 18px 18px 0 0; padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 14px; }
+.sheet h3 { font-size: 18px; }
+@media (min-width: 640px) { .scrim { align-items: center; } .sheet { border-radius: 18px; } }
+.confirm { border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line)); background: color-mix(in srgb, var(--bad) 7%, var(--surface)); border-radius: 10px; padding: 12px; display: grid; gap: 10px; font-size: 14px; }
+
+/* tab bar */
+.tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+.tabs .in { direction: rtl; max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.tabs button { border: 0; background: none; border-radius: 10px; padding: 6px 4px; cursor: pointer; display: grid; justify-items: center; gap: 2px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.tabs button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tabs button[aria-current="page"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 60; background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); direction: rtl; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+.vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+.wd { display: flex; flex-wrap: wrap; gap: 6px; }
+.wd label { border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-size: 14px; }
+.wd input { accent-color: var(--accent); }
+@media (max-width: 380px) { .stamp .t { font-size: 25px; } .seg button { font-size: 13px; } .stats { grid-template-columns: 1fr 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app" id="app" lang="he"></div>
+<nav class="tabs" aria-label="ניווט">
+  <div class="in" lang="he">
+    <button type="button" data-view="today" id="tab-today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>היום</button>
+    <button type="button" data-view="month" id="tab-month"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>חודש</button>
+    <button type="button" data-view="export" id="tab-export"><svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>ייצוא וגיבוי</button>
+    <button type="button" data-view="settings" id="tab-settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>הגדרות</button>
+  </div>
+</nav>
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<script>
+(function () {
+"use strict";
+document.documentElement.setAttribute("dir", "rtl");
+document.documentElement.setAttribute("lang", "he");
+
+/* ---------- constants ---------- */
+var KEY = "attendance.v1";
+var TYPES = {
+  office:   { label: "משרד",  xl: "משרד",  c: "--t-office" },
+  home:     { label: "בית",   xl: "בית",   c: "--t-home" },
+  vacation: { label: "חופשה", xl: "חופשה", c: "--t-vacation" },
+  sick:     { label: "מחלה",  xl: "מחלה",  c: "--t-sick" },
+  holiday:  { label: "חג",    xl: "חג",    c: "--t-holiday" },
+  rest:     { label: "מנוחה", xl: "מנוחה", c: "--t-rest" }
+};
+var DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+var DAYS_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+var MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+var LUNCH_MAX = 500;
+
+/* ---------- storage ---------- */
+var storageOK = true;
+function normalize(o) {
+  o = o && typeof o === "object" ? o : {};
+  var s = o.settings || {};
+  var m = o.meta || {};
+  return {
+    v: 1,
+    days: o.days && typeof o.days === "object" ? o.days : {},
+    settings: {
+      name: typeof s.name === "string" ? s.name : "",
+      workDays: Array.isArray(s.workDays) ? s.workDays : [0, 1, 2, 3, 4],
+      stdHours: typeof s.stdHours === "number" ? s.stdHours : 9,
+      lunchCap: typeof s.lunchCap === "number" ? s.lunchCap : 50
+    },
+    meta: { lastBackup: m.lastBackup || null, exported: m.exported || {} }
+  };
+}
+function load() {
+  try {
+    var raw = localStorage.getItem(KEY);
+    return normalize(raw ? JSON.parse(raw) : {});
+  } catch (e) { storageOK = false; return normalize({}); }
+}
+var S = load();
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }
+  catch (e) { storageOK = false; toast("לא ניתן לשמור במכשיר. מומלץ להוריד גיבוי עכשיו."); }
+}
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+
+/* ---------- dates ---------- */
+function pad(n) { return (n < 10 ? "0" : "") + n; }
+function isoOf(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function parseIso(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function todayIso() { return isoOf(new Date()); }
+function dowOf(iso) { return parseIso(iso).getDay(); }
+function addDays(iso, n) { var d = parseIso(iso); d.setDate(d.getDate() + n); return isoOf(d); }
+function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+function ymOf(iso) { return iso.slice(0, 7); }
+function longDate(iso) { var d = parseIso(iso); return "יום " + DAYS[d.getDay()] + ", " + d.getDate() + " ב" + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
+function shortDate(iso) { var d = parseIso(iso); return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear(); }
+function monthTitle(ym) { var p = ym.split("-"); return MONTHS[+p[1] - 1] + " " + p[0]; }
+function nowHM() { var d = new Date(); return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+function hmToMin(s) { if (!s || !/^\d{1,2}:\d{2}$/.test(s)) return null; var p = s.split(":"); return (+p[0]) * 60 + (+p[1]); }
+function fmtMin(m) { if (m == null) return "—"; var h = Math.floor(m / 60); return h + ":" + pad(m % 60); }
+function fmtMoney(v) { return "₪" + (Math.round(v * 100) / 100).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+/* ---------- Israeli holidays (computed Hebrew calendar) ---------- */
+function hElapsed(y) {
+  var m = Math.floor((235 * y - 234) / 19), p = 12084 + 13753 * m, d = 29 * m + Math.floor(p / 25920);
+  if ((3 * (d + 1)) % 7 < 3) d += 1;
+  return d;
+}
+function hCorr(y) {
+  var a = hElapsed(y - 1), b = hElapsed(y), c = hElapsed(y + 1);
+  if (c - b === 356) return 2;
+  if (b - a === 382) return 1;
+  return 0;
+}
+function rhRD(y) { return -1373427 + hElapsed(y) + hCorr(y); }
+function rdIso(rd) { return new Date((rd - 719163) * 864e5).toISOString().slice(0, 10); }
+var holCache = {};
+function holidaysOfYear(g) {
+  if (holCache[g]) return holCache[g];
+  var map = {}, r = rhRD(g + 3761);
+  function add(off, name, kind) { map[rdIso(r + off)] = { name: name, kind: kind }; }
+  // spring (Nisan of the Hebrew year that ends this autumn)
+  add(-164, "ערב פסח", "info");
+  add(-163, "פסח", "holiday");
+  for (var i = -162; i <= -158; i++) add(i, "חול המועד פסח", "info");
+  add(-157, "שביעי של פסח", "holiday");
+  var iyar5 = r - 143, dw = new Date((iyar5 - 719163) * 864e5).getUTCDay();
+  var adj = dw === 5 ? -1 : dw === 6 ? -2 : dw === 1 ? 1 : 0;
+  add(-143 + adj - 1, "יום הזיכרון", "info");
+  add(-143 + adj, "יום העצמאות", "holiday");
+  add(-114, "ערב שבועות", "info");
+  add(-113, "שבועות", "holiday");
+  // autumn
+  add(-1, "ערב ראש השנה", "info");
+  add(0, "ראש השנה", "holiday");
+  add(1, "ראש השנה", "holiday");
+  add(8, "ערב יום כיפור", "info");
+  add(9, "יום כיפור", "holiday");
+  add(13, "ערב סוכות", "info");
+  add(14, "סוכות", "holiday");
+  for (var j = 15; j <= 20; j++) add(j, j === 20 ? "הושענא רבה" : "חול המועד סוכות", "info");
+  add(21, "שמחת תורה", "holiday");
+  holCache[g] = map;
+  return map;
+}
+function holidayOf(iso) { return holidaysOfYear(+iso.slice(0, 4))[iso] || null; }
+
+/* ---------- day model ---------- */
+function rec(iso) { return S.days[iso] || null; }
+function isWorkday(iso) { return S.settings.workDays.indexOf(dowOf(iso)) !== -1; }
+function minutesOf(r) {
+  if (!r || !r.in || !r.out) return null;
+  var a = hmToMin(r.in), b = hmToMin(r.out);
+  if (a == null || b == null) return null;
+  var m = b - a; if (m < 0) m += 1440;
+  return m;
+}
+function info(iso) {
+  var r = rec(iso), hol = holidayOf(iso), work = isWorkday(iso);
+  var type = r && r.type ? r.type : (hol && hol.kind === "holiday" ? "holiday" : (work ? null : "rest"));
+  var past = iso < todayIso();
+  var missingOut = !!(r && r.in && !r.out && (type === "office" || type === "home") && iso < todayIso());
+  return { iso: iso, r: r, hol: hol, work: work, type: type, mins: minutesOf(r), missingOut: missingOut,
+           unreported: !r && work && !(hol && hol.kind === "holiday") && past };
+}
+function setRec(iso, patch) {
+  var r = Object.assign({}, S.days[iso] || {}, patch, { updatedAt: new Date().toISOString() });
+  ["type", "in", "out", "lunchNote", "note"].forEach(function (k) { if (r[k] === "" || r[k] == null) delete r[k]; });
+  if (r.lunch === "" || r.lunch == null || isNaN(r.lunch)) delete r.lunch;
+  if (!r.overnight) delete r.overnight;
+  var keys = Object.keys(r).filter(function (k) { return k !== "updatedAt"; });
+  if (!keys.length) delete S.days[iso]; else S.days[iso] = r;
+  save();
+}
+function monthSummary(ym) {
+  var p = ym.split("-"), y = +p[0], m = +p[1] - 1, n = daysInMonth(y, m);
+  var s = { mins: 0, lunch: 0, lunchDays: 0, credit: 0, office: 0, home: 0, vacation: 0, sick: 0, holiday: 0, missing: 0, unreported: 0 };
+  for (var d = 1; d <= n; d++) {
+    var iso = ym + "-" + pad(d), x = info(iso);
+    if (x.mins != null) s.mins += x.mins;
+    if (x.r && typeof x.r.lunch === "number") { s.lunch += x.r.lunch; s.lunchDays++; s.credit += Math.min(x.r.lunch, S.settings.lunchCap); }
+    if (x.type && s[x.type] != null) s[x.type]++;
+    if (x.missingOut) s.missing++;
+    if (x.unreported) s.unreported++;
+  }
+  return s;
+}
+
+/* ---------- small utils ---------- */
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+function $(sel, root) { return (root || document).querySelector(sel); }
+var toastTimer = null;
+function toast(msg) {
+  var root = $("#toast-root");
+  root.innerHTML = '<div class="toast" role="status">' + esc(msg) + "</div>";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { root.innerHTML = ""; }, 3200);
+}
+function tc(type) { return type ? "var(" + TYPES[type].c + ")" : "var(--line)"; }
+
+/* ---------- file delivery (artifact viewer or standalone) ---------- */
+var inViewer = !!(window.claude && typeof window.claude.use === "function");
+var dlPromise = null;
+function viewerDownloads() {
+  if (!inViewer) return Promise.resolve(null);
+  if (!dlPromise) dlPromise = window.claude.use("downloads").catch(function () { return null; });
+  return dlPromise;
+}
+function offerFile(filename, blob) {
+  return viewerDownloads().then(function (dl) {
+    if (dl) {
+      return dl.save({ filename: filename, data: blob }).then(function () { return "saved"; }, function (e) {
+        if (e && e.code === "declined") return "declined";
+        throw e;
+      });
+    }
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    return "saved";
+  });
+}
+var XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+function canShareFiles() {
+  if (inViewer) return false;
+  try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [new File([new Uint8Array([80, 75, 3, 4])], "test.xlsx", { type: XLSX_MIME })] })); }
+  catch (e) { return false; }
+}
+
+/* ---------- XLSX writer (stored zip, no libraries) ---------- */
+var CRC = (function () { var t = [], c; for (var n = 0; n < 256; n++) { c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { var c = 0xFFFFFFFF; for (var i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(files) {
+  var enc = new TextEncoder(), parts = [], central = [], offset = 0;
+  var now = new Date(), dtime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1),
+      ddate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  files.forEach(function (f) {
+    var name = enc.encode(f.name), data = typeof f.data === "string" ? enc.encode(f.data) : f.data, crc = crc32(data);
+    var lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, dtime, true); lh.setUint16(12, ddate, true); lh.setUint32(14, crc, true);
+    lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    var ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+    ch.setUint16(12, dtime, true); ch.setUint16(14, ddate, true); ch.setUint32(16, crc, true);
+    ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + data.length;
+  });
+  var cdSize = central.reduce(function (s, p) { return s + p.length; }, 0);
+  var eo = new DataView(new ArrayBuffer(22));
+  eo.setUint32(0, 0x06054b50, true); eo.setUint16(8, files.length, true); eo.setUint16(10, files.length, true);
+  eo.setUint32(12, cdSize, true); eo.setUint32(16, offset, true);
+  return new Blob(parts.concat(central, [new Uint8Array(eo.buffer)]), { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+function xmlEsc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+function colName(i) { return String.fromCharCode(65 + i); }
+function serialOf(iso) { var p = iso.split("-"); return Date.UTC(+p[0], +p[1] - 1, +p[2]) / 864e5 + 25569; }
+
+function buildXlsx(ym) {
+  var p = ym.split("-"), y = +p[0], m = +p[1] - 1, n = daysInMonth(y, m), cap = S.settings.lunchCap;
+  // styles registry
+  var FILLS = { none: 0, rest: 2, vacation: 3, sick: 4, home: 5, holiday: 6, alert: 7, header: 8, sum: 9 };
+  var fillXml = '<fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+    ["EEF0F0", "DCE8F8", "FBE2CB", "DDF0DE", "ECE2F7", "FFF0B0", "0E6A61", "E8F1EF"].map(function (rgb) {
+      return '<fill><patternFill patternType="solid"><fgColor rgb="FF' + rgb + '"/><bgColor indexed="64"/></patternFill></fill>'; }).join("");
+  // fonts: 0 normal, 1 bold, 2 title, 3 header white bold, 4 muted
+  var fontXml = '<font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font><font><b/><sz val="15"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><sz val="10"/><color rgb="FF5A6A67"/><name val="Arial"/></font>';
+  var NUM = { gen: 0, date: 164, time: 165, hours: 166, money: 167, int: 1 };
+  var xfs = [], xfKey = {};
+  function st(font, fill, num, border, center) {
+    var k = [font, fill, num, border, center ? 1 : 0].join("|");
+    if (xfKey[k] != null) return xfKey[k];
+    xfs.push('<xf numFmtId="' + num + '" fontId="' + font + '" fillId="' + fill + '" borderId="' + border + '" xfId="0"' +
+      (num ? ' applyNumberFormat="1"' : "") + (font ? ' applyFont="1"' : "") + (fill ? ' applyFill="1"' : "") + (border ? ' applyBorder="1"' : "") +
+      ' applyAlignment="1"><alignment horizontal="' + (center ? "center" : "right") + '" vertical="center" readingOrder="2"/></xf>');
+    xfKey[k] = xfs.length - 1; return xfKey[k];
+  }
+  st(0, 0, 0, 0, false); // default style 0
+  var rows = [], merges = [];
+  function cell(ref, v, s) {
+    if (v == null || v === "") return '<c r="' + ref + '" s="' + s + '"/>';
+    if (typeof v === "number") return '<c r="' + ref + '" s="' + s + '"><v>' + v + "</v></c>";
+    if (typeof v === "object" && v.f) {
+      if (v.v === "" || v.v == null) return '<c r="' + ref + '" s="' + s + '" t="str"><f>' + xmlEsc(v.f) + "</f><v></v></c>";
+      return '<c r="' + ref + '" s="' + s + '"><f>' + xmlEsc(v.f) + "</f><v>" + v.v + "</v></c>";
+    }
+    return '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + "</t></is></c>";
+  }
+  function row(r, cells, ht) { rows.push('<row r="' + r + '"' + (ht ? ' ht="' + ht + '" customHeight="1"' : "") + ">" + cells.join("") + "</row>"); }
+
+  var name = S.settings.name || "";
+  row(1, [cell("A1", "דוח נוכחות" + (name ? " – " + name : ""), st(2, 0, 0, 0))], 24);
+  merges.push("A1:H1");
+  var gen = new Date();
+  row(2, [cell("A2", "חודש: " + monthTitle(ym) + "  ·  הופק: " + shortDate(isoOf(gen)) + "  ·  תקרת סבסוד ארוחה: " + cap + " ₪", st(4, 0, 0, 0))]);
+  merges.push("A2:H2");
+  var heads = ["תאריך", "יום", "סוג יום", "כניסה", "יציאה", 'סה"כ שעות', "ארוחת צהריים (₪)", "הערות"];
+  var hs = st(3, FILLS.header, 0, 1, true);
+  row(4, heads.map(function (h, i) { return cell(colName(i) + "4", h, hs); }), 20);
+
+  var first = 5, last = first + n - 1;
+  for (var d = 1; d <= n; d++) {
+    var iso = ym + "-" + pad(d), x = info(iso), r = x.r || {}, R = first + d - 1;
+    var fill = x.missingOut ? FILLS.alert : (x.type && FILLS[x.type] ? FILLS[x.type] : FILLS.none);
+    var notes = [];
+    if (x.hol) notes.push(x.hol.name);
+    if (x.missingOut) notes.push("חסר יציאה");
+    if (x.unreported) notes.push("לא דווח");
+    if (r.overnight) notes.push("משמרת שחוצה חצות");
+    if (r.lunchNote) notes.push(r.lunchNote);
+    if (r.note) notes.push(r.note);
+    var inM = hmToMin(r.in), outM = hmToMin(r.out);
+    var hoursV = x.mins != null ? x.mins / 1440 : "";
+    row(R, [
+      cell("A" + R, serialOf(iso), st(0, fill, NUM.date, 1, true)),
+      cell("B" + R, DAYS[dowOf(iso)], st(0, fill, 0, 1, true)),
+      cell("C" + R, x.type ? TYPES[x.type].xl : "", st(0, fill, 0, 1, true)),
+      cell("D" + R, inM != null ? inM / 1440 : "", st(0, fill, NUM.time, 1, true)),
+      cell("E" + R, outM != null ? outM / 1440 : "", st(0, fill, NUM.time, 1, true)),
+      cell("F" + R, { f: 'IF(OR(D' + R + '="",E' + R + '=""),"",MOD(E' + R + "-D" + R + ",1))", v: hoursV }, st(0, fill, NUM.hours, 1, true)),
+      cell("G" + R, typeof r.lunch === "number" ? r.lunch : "", st(0, fill, NUM.money, 1, true)),
+      cell("H" + R, notes.join(" · "), st(0, fill, 0, 1, false))
+    ]);
+  }
+  var sm = monthSummary(ym), R0 = last + 2, rng = function (c) { return c + first + ":" + c + last; };
+  var lab = st(1, FILLS.sum, 0, 1, false);
+  var summary = [
+    ['סה"כ שעות בחודש', { f: "SUM(" + rng("F") + ")", v: sm.mins / 1440 }, NUM.hours],
+    ['סה"כ ארוחות צהריים', { f: "SUM(" + rng("G") + ")", v: sm.lunch }, NUM.money],
+    ["ימים עם ארוחה", { f: "COUNT(" + rng("G") + ")", v: sm.lunchDays }, NUM.int],
+    ['סה"כ לזיכוי (עד ' + cap + " ₪ ליום)", { f: "SUMPRODUCT((" + rng("G") + ">" + cap + ")*" + cap + "+(" + rng("G") + "<=" + cap + ")*" + rng("G") + ")", v: sm.credit }, NUM.money],
+    ["ימי משרד", { f: 'COUNTIF(' + rng("C") + ',"משרד")', v: sm.office }, NUM.int],
+    ["ימי עבודה מהבית", { f: 'COUNTIF(' + rng("C") + ',"בית")', v: sm.home }, NUM.int],
+    ["ימי חופשה", { f: 'COUNTIF(' + rng("C") + ',"חופשה")', v: sm.vacation }, NUM.int],
+    ["ימי מחלה", { f: 'COUNTIF(' + rng("C") + ',"מחלה")', v: sm.sick }, NUM.int],
+    ["ימי חג", { f: 'COUNTIF(' + rng("C") + ',"חג")', v: sm.holiday }, NUM.int]
+  ];
+  summary.forEach(function (s, i) {
+    var R = R0 + i;
+    row(R, [cell("A" + R, s[0], lab), cell("B" + R, "", lab), cell("C" + R, "", lab), cell("D" + R, s[1], st(1, FILLS.sum, s[2], 1, true))]);
+    merges.push("A" + R + ":C" + R);
+  });
+  var lastRow = R0 + summary.length - 1;
+
+  var widths = [13, 9, 10, 9, 9, 11, 17, 34];
+  var sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
+    '<dimension ref="A1:H' + lastRow + '"/>' +
+    '<sheetViews><sheetView rightToLeft="1" workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<sheetFormatPr defaultRowHeight="16"/>' +
+    "<cols>" + widths.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join("") + "</cols>" +
+    "<sheetData>" + rows.join("") + "</sheetData>" +
+    '<mergeCells count="' + merges.length + '">' + merges.map(function (r) { return '<mergeCell ref="' + r + '"/>'; }).join("") + "</mergeCells>" +
+    '<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>' +
+    '<pageSetup orientation="portrait" fitToWidth="1" fitToHeight="0"/>' +
+    "</worksheet>";
+  var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="4"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="hh:mm"/><numFmt numFmtId="166" formatCode="[h]:mm"/><numFmt numFmtId="167" formatCode="&quot;₪&quot;#,##0.00"/></numFmts>' +
+    '<fonts count="5">' + fontXml + "</fonts>" +
+    '<fills count="10">' + fillXml + "</fills>" +
+    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+    '<border><left style="thin"><color rgb="FFD3DCDA"/></left><right style="thin"><color rgb="FFD3DCDA"/></right><top style="thin"><color rgb="FFD3DCDA"/></top><bottom style="thin"><color rgb="FFD3DCDA"/></bottom><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="' + xfs.length + '">' + xfs.join("") + "</cellXfs>" +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    "</styleSheet>";
+  var sheetName = (MONTHS[m] + " " + y);
+  var workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<bookViews><workbookView/></bookViews><sheets><sheet name="' + xmlEsc(sheetName) + '" sheetId="1" r:id="rId1"/></sheets>' +
+    '<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">\'' + xmlEsc(sheetName) + "'!$4:$4</definedName></definedNames>" +
+    '<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>';
+  var files = [
+    { name: "[Content_Types].xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
+    { name: "_rels/.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+    { name: "xl/workbook.xml", data: workbook },
+    { name: "xl/_rels/workbook.xml.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+    { name: "xl/styles.xml", data: styles },
+    { name: "xl/worksheets/sheet1.xml", data: sheet }
+  ];
+  return zipStore(files);
+}
+function xlsxName(ym) {
+  var p = ym.split("-"), nm = (S.settings.name || "").trim().replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "_");
+  return "נוכחות_" + (nm ? nm + "_" : "") + p[1] + "-" + p[0] + ".xlsx";
+}
+
+/* ---------- views ---------- */
+var view = "today";
+var monthCursor = ymOf(todayIso());
+var exportYm = (function () { var t = parseIso(todayIso()); if (t.getDate() <= 5) { t.setDate(0); } return isoOf(t).slice(0, 7); })();
+var pendingRestore = null;
+
+function render() {
+  var app = $("#app");
+  if (view === "today") app.innerHTML = viewToday();
+  else if (view === "month") app.innerHTML = viewMonth();
+  else if (view === "export") app.innerHTML = viewExport();
+  else app.innerHTML = viewSettings();
+  document.querySelectorAll(".tabs button").forEach(function (b) {
+    if (b.getAttribute("data-view") === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
+}
+
+function banners() {
+  var out = [], t = todayIso();
+  // missing check-out in last 14 days
+  for (var i = 1; i <= 14; i++) {
+    var iso = addDays(t, -i), x = info(iso);
+    if (x.missingOut) { out.push('<div class="banner warn"><span>חסרה שעת יציאה ב<b>' + esc(longDate(iso)) + '</b>.</span><button class="btn" type="button" data-edit="' + iso + '">להשלמה</button></div>'); break; }
+  }
+  // end-of-month export reminder
+  var tm = ymOf(t), lastWork = null, n = daysInMonth(+tm.slice(0, 4), +tm.slice(5) - 1);
+  for (var d = n; d >= 1; d--) { var iso2 = tm + "-" + pad(d); if (isWorkday(iso2) && !(holidayOf(iso2) && holidayOf(iso2).kind === "holiday")) { lastWork = iso2; break; } }
+  var prevYm = (function () { var x = parseIso(t); x.setDate(0); return isoOf(x).slice(0, 7); })();
+  var due = null;
+  if (lastWork && t >= lastWork && !S.meta.exported[tm]) due = tm;
+  else if (+t.slice(8) <= 5 && !S.meta.exported[prevYm] && hasData(prevYm)) due = prevYm;
+  if (due) out.push('<div class="banner info"><span>להפיק את דוח <b>' + monthTitle(due) + '</b> לאקסל?</span><button class="btn primary" type="button" data-goexport="' + due + '">להפקת הדוח</button></div>');
+  // backup reminder
+  var count = Object.keys(S.days).length;
+  var lb = S.meta.lastBackup ? new Date(S.meta.lastBackup) : null;
+  if (count >= 3 && (!lb || (Date.now() - lb.getTime()) > 7 * 864e5)) {
+    out.push('<div class="banner info"><span>' + (lb ? "עבר יותר משבוע מהגיבוי האחרון." : "עוד לא נשמר גיבוי של הנתונים.") + '</span><button class="btn" type="button" id="quick-backup">להורדת גיבוי</button></div>');
+  }
+  if (!storageOK) out.push('<div class="banner warn"><span>הדפדפן לא מאפשר לשמור נתונים במכשיר. הנתונים יימחקו בסגירה; הורידו גיבוי.</span></div>');
+  return out.join("");
+}
+function hasData(ym) { return Object.keys(S.days).some(function (k) { return k.indexOf(ym) === 0; }); }
+
+function viewToday() {
+  var t = todayIso(), x = info(t), r = x.r || {};
+  var curType = x.type === "rest" ? null : x.type;
+  var selType = curType || "office";
+  var html = '<header class="head"><h1>שעון נוכחות</h1><span class="sub">' + esc(longDate(t)) + "</span></header>";
+  if (x.hol) {
+    html += '<div class="banner hol"><span>' + (x.hol.kind === "holiday" ? "היום חג: " : "") + "<b>" + esc(x.hol.name) + "</b>" +
+      (x.hol.kind === "holiday" ? " · יום שבתון" : " · יום עבודה רגיל") + "</span>" +
+      (x.hol.kind === "holiday" && x.type === "holiday" ? '<button class="btn" type="button" data-settype="office">עבדתי היום</button>' : "") + "</div>";
+  }
+  html += banners();
+  var showWork = (x.type === "office" || x.type === "home" || (!x.type) || (x.type === "rest" && r.in));
+  if (x.type === "rest" && !r.in) {
+    html += '<section class="card"><div class="row spread"><span class="pill" style="--tc:var(--t-rest)"><span class="dot"></span>יום מנוחה</span><button class="btn" type="button" data-settype="office">עבדתי היום</button></div></section>';
+  }
+  html += '<section class="card" aria-labelledby="type-h"><span class="label" id="type-h">סוג היום</span><div class="seg">' +
+    ["office", "home", "vacation", "sick"].map(function (k) {
+      return '<button type="button" id="seg-' + k + '" data-settype="' + k + '" aria-pressed="' + (curType === k) + '" style="--tc:' + tc(k) + '"><span class="dot"></span>' + TYPES[k].label + "</button>";
+    }).join("") + "</div>" +
+    (x.type === "holiday" ? '<span class="pill" style="--tc:var(--t-holiday)"><span class="dot"></span>מסומן כחג</span>' : "") + "</section>";
+
+  if (x.type === "vacation" || x.type === "sick" || x.type === "holiday") {
+    html += '<section class="card"><p class="muted" style="margin:0">' + (x.type === "holiday" ? "ביום חג אין דיווח שעות. אם עבדתם, בחרו משרד או בית." : "ביום " + TYPES[x.type].label + " אין דיווח שעות וארוחה.") + "</p></section>";
+  } else if (showWork) {
+    var running = r.in && !r.out ? (function () { var m = hmToMin(nowHM()) - hmToMin(r.in); if (m < 0) m += 1440; return m; })() : null;
+    html += '<section class="card" aria-label="כרטיס נוכחות">' +
+      '<div class="stamps">' +
+        '<div class="stamp' + (r.in ? " filled" : "") + '"><span class="label">כניסה</span><span class="t num' + (r.in ? "" : " empty") + '">' + (r.in || "--:--") + "</span></div>" +
+        '<div class="stamp' + (r.out ? " filled" : "") + '"><span class="label">יציאה</span><span class="t num' + (r.out ? "" : " empty") + '">' + (r.out || "--:--") + "</span></div>" +
+      "</div>" +
+      (!r.in ? '<button class="punch" type="button" id="punch-in">כניסה · <span class="num">' + nowHM() + "</span></button>"
+        : !r.out ? '<button class="punch out" type="button" id="punch-out">יציאה · <span class="num">' + nowHM() + "</span></button>" : "") +
+      '<div class="total"><span class="muted">' + (r.out ? 'סה"כ היום' : r.in ? "זמן מאז הכניסה" : 'סה"כ היום') + '</span><span class="big num">' + (r.out ? fmtMin(x.mins) : running != null ? fmtMin(running) : "0:00") + "</span></div>" +
+      '<div class="row"><button class="btn link" type="button" data-edit="' + t + '">עריכה ידנית של השעות</button></div>' +
+      "</section>";
+    var lunchVal = typeof r.lunch === "number" ? r.lunch : "";
+    html += '<section class="card" aria-labelledby="lunch-h"><span class="label" id="lunch-h">ארוחת צהריים</span>' +
+      '<div class="grid2"><label class="field"><span>סכום</span><span class="money"><input type="number" inputmode="decimal" step="0.01" min="0" max="' + LUNCH_MAX + '" id="lunch-today" value="' + lunchVal + '" placeholder="0.00"></span></label>' +
+      '<label class="field"><span>הערה (לא חובה)</span><input type="text" id="lunchnote-today" maxlength="100" value="' + esc(r.lunchNote || "") + '" placeholder="שם המסעדה"></label></div>' +
+      '<div class="row spread"><span class="hint" id="lunch-hint">' + lunchHint(lunchVal) + '</span><button class="btn primary" type="button" id="lunch-save">שמירה</button></div></section>';
+  }
+  var sm = monthSummary(ymOf(t));
+  html += '<section class="card" aria-labelledby="sum-h"><div class="row spread"><span class="label" id="sum-h">החודש עד כה · ' + monthTitle(ymOf(t)) + '</span><button class="btn link" type="button" data-view="month">ללוח החודשי</button></div>' +
+    '<div class="stats"><div class="stat"><span class="v num">' + fmtMin(sm.mins) + '</span><span class="k">שעות</span></div>' +
+    '<div class="stat"><span class="v num">' + fmtMoney(sm.lunch) + '</span><span class="k">ארוחות</span></div>' +
+    '<div class="stat"><span class="v num">' + (sm.office + sm.home) + '</span><span class="k">ימי עבודה</span></div></div></section>';
+  return html;
+}
+function lunchHint(v) {
+  if (v === "" || v == null) return "תקרת סבסוד: " + S.settings.lunchCap + " ₪ ליום";
+  var n = Number(v);
+  if (isNaN(n) || n < 0 || n > LUNCH_MAX) return '<span class="bad">הזינו סכום בין 0 ל-' + LUNCH_MAX + " ₪</span>";
+  if (n > S.settings.lunchCap) return '<span class="warn">מעל התקרה (' + S.settings.lunchCap + ' ₪). לזיכוי: ' + S.settings.lunchCap + " ₪</span>";
+  return "בתוך התקרה (" + S.settings.lunchCap + " ₪)";
+}
+
+function viewMonth() {
+  var ym = monthCursor, p = ym.split("-"), y = +p[0], m = +p[1] - 1, n = daysInMonth(y, m), t = todayIso();
+  var html = '<header class="head"><h1>לוח חודשי</h1></header>';
+  html += '<section class="card"><div class="monthnav"><button class="iconbtn" type="button" id="m-prev" aria-label="החודש הקודם">›</button><h2>' + monthTitle(ym) + '</h2><button class="iconbtn" type="button" id="m-next" aria-label="החודש הבא">‹</button></div>';
+  html += '<div class="cal" role="grid" aria-label="ימי החודש">' + DAYS_SHORT.map(function (d) { return '<span class="dow">' + d + "</span>"; }).join("");
+  var startDow = new Date(y, m, 1).getDay();
+  for (var b = 0; b < startDow; b++) html += '<span class="day blank" aria-hidden="true"></span>';
+  for (var d = 1; d <= n; d++) {
+    var iso = ym + "-" + pad(d), x = info(iso), cls = "day";
+    if (x.type === "rest") cls += " rest"; else if (x.type) cls += " typed";
+    if (x.unreported) cls += " missing";
+    if (x.missingOut) cls += " alert";
+    if (iso === t) cls += " today";
+    var label = shortDate(iso) + (x.type ? " · " + TYPES[x.type].label : "") + (x.hol ? " · " + x.hol.name : "");
+    html += '<button type="button" class="' + cls + '" data-edit="' + iso + '" style="--tc:' + tc(x.type) + '" aria-label="' + esc(label) + '">' +
+      '<span class="n">' + d + "</span>" + (x.hol ? (x.hol.kind === "holiday" ? '<span class="star" aria-hidden="true">★</span>' : '<span class="star" aria-hidden="true" style="color:var(--muted);font-weight:700">·</span>') : "") +
+      (x.hol ? '<span class="hn' + (x.hol.kind === "holiday" ? "" : " info") + '">' + esc(shortHol(x.hol.name)) + "</span>" : "") +
+      '<span class="h">' + (x.mins != null ? fmtMin(x.mins) : x.r && x.r.in ? "…" : "") + "</span></button>";
+  }
+  html += "</div>";
+  var LEG = { office: "משרד", home: "בית", vacation: "חופשה", sick: "מחלה", holiday: "יום חג" };
+  html += '<div class="legend">' + ["office", "home", "vacation", "sick", "holiday"].map(function (k) { return '<span style="--tc:' + tc(k) + '"><span class="dot"></span>' + LEG[k] + "</span>"; }).join("") +
+    '<span><span style="color:var(--t-holiday)">★</span> שבתון רשמי</span><span><b>·</b> ערב חג / חול המועד</span><span>מסגרת מקווקוות: לא דווח</span></div>' + holidayList(ym) + "</section>";
+  var sm = monthSummary(ym);
+  html += '<section class="card"><span class="label">סיכום ' + monthTitle(ym) + '</span><div class="stats">' +
+    stat(fmtMin(sm.mins), 'סה"כ שעות') + stat(fmtMoney(sm.lunch), "ארוחות") + stat(fmtMoney(sm.credit), "לזיכוי") +
+    stat(sm.office, "משרד") + stat(sm.home, "בית") + stat(sm.vacation + " / " + sm.sick, "חופשה / מחלה") + "</div>" +
+    (sm.missing ? '<span class="hint warn">' + sm.missing + " ימים עם יציאה חסרה</span>" : "") + "</section>";
+  html += '<section class="card" aria-labelledby="range-h"><span class="label" id="range-h">סימון טווח ימים</span>' +
+    '<div class="grid2"><label class="field"><span>מתאריך</span><input type="date" id="r-from" value="' + ym + '-01"></label><label class="field"><span>עד תאריך</span><input type="date" id="r-to" value="' + ym + '-01"></label></div>' +
+    '<div class="row"><label class="field" style="flex:1"><span>סוג</span><select id="r-type"><option value="vacation">חופשה</option><option value="sick">מחלה</option><option value="home">עבודה מהבית</option></select></label></div>' +
+    '<div class="row spread"><span class="hint">חל רק על ימי עבודה; סופי שבוע וחגים לא משתנים.</span><button class="btn primary" type="button" id="r-apply">סימון</button></div></section>';
+  return html;
+}
+var HOL_SHORT = { "ראש השנה": "ר״ה", "ערב ראש השנה": "ערב ר״ה", "ערב יום כיפור": "ערב כיפור", "יום כיפור": "כיפור",
+  "ערב סוכות": "ערב סוכות", "חול המועד סוכות": "חוה״מ", "הושענא רבה": "הוש״ר", "שמחת תורה": "שמח״ת",
+  "ערב פסח": "ערב פסח", "חול המועד פסח": "חוה״מ", "שביעי של פסח": "ז׳ פסח", "יום הזיכרון": "זיכרון",
+  "יום העצמאות": "עצמאות", "ערב שבועות": "ערב שבועות" };
+function shortHol(n) { return HOL_SHORT[n] || n; }
+function holidayList(ym) {
+  var p = ym.split("-"), n = daysInMonth(+p[0], +p[1] - 1), items = [], lastName = null;
+  for (var d = 1; d <= n; d++) {
+    var iso = ym + "-" + pad(d), h = holidayOf(iso);
+    if (!h) { lastName = null; continue; }
+    if (h.name === lastName) { items[items.length - 1].to = d; continue; }
+    items.push({ from: d, to: d, name: h.name, kind: h.kind }); lastName = h.name;
+  }
+  if (!items.length) return "";
+  var mm = +p[1];
+  return '<div class="holist"><span class="label">חגים ומועדים החודש</span>' + items.map(function (it) {
+    var when = it.from === it.to ? it.from + "/" + mm : it.from + "–" + it.to + "/" + mm;
+    return '<div class="' + (it.kind === "holiday" ? "" : "info") + '"><span class="num">' + when + "</span><span>" +
+      (it.kind === "holiday" ? '<span style="color:var(--t-holiday)">★</span> ' : "") + esc(it.name) + (it.kind === "holiday" ? " · שבתון" : "") + "</span></div>";
+  }).join("") + "</div>";
+}
+function stat(v, k) { return '<div class="stat"><span class="v num">' + esc(v) + '</span><span class="k">' + esc(k) + "</span></div>"; }
+
+function viewExport() {
+  var sm = monthSummary(exportYm), done = S.meta.exported[exportYm];
+  var html = '<header class="head"><h1>ייצוא וגיבוי</h1></header>';
+  html += '<section class="card" aria-labelledby="x-h"><span class="label" id="x-h">דוח חודשי לאקסל</span>' +
+    '<label class="field"><span>חודש</span><input type="month" id="x-month" value="' + exportYm + '"></label>' +
+    '<table class="tbl"><tbody>' +
+    trow('סה"כ שעות', fmtMin(sm.mins)) + trow("ארוחות צהריים", fmtMoney(sm.lunch) + " · " + sm.lunchDays + " ימים") +
+    trow("לזיכוי (עד " + S.settings.lunchCap + " ₪ ליום)", fmtMoney(sm.credit)) +
+    trow("משרד / בית", sm.office + " / " + sm.home) + trow("חופשה / מחלה / חג", sm.vacation + " / " + sm.sick + " / " + sm.holiday) +
+    "</tbody></table>" +
+    (sm.missing ? '<span class="hint warn">' + sm.missing + " ימים עם יציאה חסרה יסומנו בצהוב בקובץ.</span>" : "") +
+    (sm.unreported ? '<span class="hint">' + sm.unreported + " ימי עבודה ללא דיווח יסומנו \"לא דווח\".</span>" : "") +
+    '<div class="row"><button class="btn primary" type="button" id="x-go">ייצוא לאקסל</button>' + (canShareFiles() ? '<button class="btn" type="button" id="x-share">שיתוף הקובץ</button>' : "") + "</div>" +
+    (done ? '<span class="hint">יוצא לאחרונה: ' + esc(new Date(done).toLocaleString("he-IL")) + "</span>" : "") +
+    '<span class="hint">שם הקובץ: ' + esc(xlsxName(exportYm)) + "</span></section>";
+  var lb = S.meta.lastBackup;
+  html += '<section class="card" aria-labelledby="b-h"><span class="label" id="b-h">גיבוי ושחזור</span>' +
+    '<p class="muted" style="margin:0">קובץ הגיבוי מכיל את כל הימים וההגדרות. שמרו אותו בענן או במייל, ושחזרו ממנו אם הנתונים נמחקו או במעבר למכשיר חדש.</p>' +
+    '<div class="row"><button class="btn primary" type="button" id="b-go">הורדת גיבוי</button><button class="btn" type="button" id="b-pick">שחזור מגיבוי</button><input type="file" id="b-file" class="vh" tabindex="-1" aria-hidden="true"></div>' +
+    '<span class="hint">' + (lb ? "גיבוי אחרון: " + esc(new Date(lb).toLocaleString("he-IL")) : "עוד לא בוצע גיבוי") + " · " + Object.keys(S.days).length + " ימים שמורים</span>" +
+    (pendingRestore ? '<div class="confirm" role="alert"><span>לשחזר מהקובץ <b>' + esc(pendingRestore.file) + "</b>? " + Object.keys(pendingRestore.data.days).length + " ימים. הנתונים הנוכחיים יוחלפו.</span>" +
+      '<div class="row"><button class="btn primary" type="button" id="b-confirm">שחזור</button><button class="btn" type="button" id="b-cancel">ביטול</button></div></div>' : "") +
+    "</section>";
+  return html;
+}
+function trow(k, v) { return "<tr><td>" + esc(k) + '</td><td class="num">' + esc(v) + "</td></tr>"; }
+
+function viewSettings() {
+  var s = S.settings;
+  return '<header class="head"><h1>הגדרות</h1></header>' +
+    '<section class="card"><label class="field"><span>שם העובד (מופיע בקובץ)</span><input type="text" id="s-name" value="' + esc(s.name) + '" maxlength="60"></label>' +
+    '<div class="field"><span>ימי עבודה</span><div class="wd">' + DAYS.map(function (d, i) {
+      return '<label><input type="checkbox" data-wd="' + i + '" id="wd-' + i + '"' + (s.workDays.indexOf(i) !== -1 ? " checked" : "") + ">" + d + "</label>"; }).join("") + "</div></div>" +
+    '<div class="grid2"><label class="field"><span>שעות תקן ליום</span><input type="number" id="s-std" min="1" max="24" step="0.5" value="' + s.stdHours + '"></label>' +
+    '<label class="field"><span>תקרת סבסוד ארוחה</span><span class="money"><input type="number" id="s-cap" min="0" max="' + LUNCH_MAX + '" step="1" value="' + s.lunchCap + '"></span></label></div>' +
+    '<div class="row"><button class="btn primary" type="button" id="s-save">שמירת הגדרות</button></div></section>' +
+    '<section class="card"><span class="label">על האפליקציה</span><p class="muted" style="margin:0">הנתונים נשמרים רק במכשיר הזה, ללא שרת וללא מיקום. חגי ישראל מחושבים אוטומטית לפי הלוח העברי. כדי לא לאבד נתונים, הורידו גיבוי מדי שבוע ממסך הייצוא.</p></section>';
+}
+
+/* ---------- edit sheet ---------- */
+var editIso = null, editConfirm = null, editInitial = null;
+function openEdit(iso) { editIso = iso; editConfirm = null; renderSheet(); editInitial = JSON.stringify(readEdit()); }
+function closeEdit() { editIso = null; editInitial = null; $("#sheet-root").innerHTML = ""; }
+function editDirty() { return !!(editIso && $("#e-type") && editInitial !== JSON.stringify(readEdit())); }
+function requestClose() {
+  if (!editDirty()) { closeEdit(); return; }
+  var keep = readEdit();
+  editConfirm = { text: "יש שינויים שלא נשמרו. לסגור בלי לשמור?", yes: "סגירה בלי שמירה", act: "discard" };
+  renderSheet(); restoreEdit(keep);
+}
+function renderSheet() {
+  if (!editIso) return;
+  var x = info(editIso), r = x.r || {}, type = x.type === "rest" ? "" : (x.type || "");
+  var opts = [["", x.work ? "לא דווח" : "מנוחה"], ["office", "משרד"], ["home", "עבודה מהבית"], ["vacation", "חופשה"], ["sick", "מחלה"], ["holiday", "חג"]];
+  var html = '<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="e-h">' +
+    '<div class="row spread"><h3 id="e-h">' + esc(longDate(editIso)) + '</h3><button class="iconbtn" type="button" id="e-close" aria-label="סגירה">✕</button></div>' +
+    (x.hol ? '<span class="pill" style="--tc:var(--t-holiday)"><span class="dot"></span>' + esc(x.hol.name) + (x.hol.kind === "holiday" ? " · שבתון" : "") + "</span>" : "") +
+    '<label class="field"><span>סוג יום</span><select id="e-type">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === type ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select></label>" +
+    '<div class="grid2"><label class="field"><span>כניסה</span><input type="time" id="e-in" value="' + (r.in || "") + '"></label><label class="field"><span>יציאה</span><input type="time" id="e-out" value="' + (r.out || "") + '"></label></div>' +
+    '<label class="check"><input type="checkbox" id="e-night"' + (r.overnight ? " checked" : "") + '>משמרת שחוצה חצות</label>' +
+    '<div class="grid2"><label class="field"><span>ארוחת צהריים</span><span class="money"><input type="number" inputmode="decimal" step="0.01" min="0" max="' + LUNCH_MAX + '" id="e-lunch" value="' + (typeof r.lunch === "number" ? r.lunch : "") + '"></span></label>' +
+    '<label class="field"><span>הערה לארוחה</span><input type="text" id="e-lnote" maxlength="100" value="' + esc(r.lunchNote || "") + '"></label></div>' +
+    '<label class="field"><span>הערה ליום</span><input type="text" id="e-note" maxlength="140" value="' + esc(r.note || "") + '"></label>' +
+    '<span class="hint" id="e-msg" aria-live="polite"></span>' +
+    (editConfirm ? '<div class="confirm" role="alert"><span>' + esc(editConfirm.text) + '</span><div class="row"><button class="btn primary" type="button" id="e-yes">' + esc(editConfirm.yes) + '</button><button class="btn" type="button" id="e-no">ביטול</button></div></div>' : "") +
+    '<div class="row spread"><button class="btn danger" type="button" id="e-clear">ניקוי היום</button><button class="btn primary" type="button" id="e-save">שמירה</button></div>' +
+    "</div></div>";
+  $("#sheet-root").innerHTML = html;
+  syncEditFields();
+}
+function syncEditFields() {
+  var tp = $("#e-type"); if (!tp) return;
+  var locked = tp.value === "vacation" || tp.value === "sick" || tp.value === "holiday";
+  ["#e-in", "#e-out", "#e-lunch", "#e-lnote", "#e-night"].forEach(function (s) { $(s).disabled = locked; });
+}
+function readEdit() {
+  return { type: $("#e-type").value, in: $("#e-in").value, out: $("#e-out").value, overnight: $("#e-night").checked,
+           lunch: $("#e-lunch").value, lunchNote: $("#e-lnote").value.trim(), note: $("#e-note").value.trim() };
+}
+function validateEdit(v, force) {
+  var msg = $("#e-msg");
+  var locked = v.type === "vacation" || v.type === "sick" || v.type === "holiday";
+  if (locked) return { ok: true };
+  if (v.out && !v.in) return err("הזינו שעת כניסה לפני שעת יציאה.");
+  if (v.in && v.out && hmToMin(v.out) <= hmToMin(v.in) && !v.overnight) return err("שעת היציאה מוקדמת משעת הכניסה. סמנו \"משמרת שחוצה חצות\" אם זה נכון.");
+  if (v.lunch !== "") { var n = Number(v.lunch); if (isNaN(n) || n < 0 || n > LUNCH_MAX) return err("סכום הארוחה צריך להיות בין 0 ל-" + LUNCH_MAX + " ₪."); }
+  if (v.in && v.out) { var m = hmToMin(v.out) - hmToMin(v.in); if (m < 0) m += 1440; if (m > 16 * 60 && !force) return { ok: false, confirm: { text: "יום של " + fmtMin(m) + " שעות. לשמור בכל זאת?", yes: "שמירה" } }; }
+  return { ok: true };
+  function err(t) { msg.className = "hint bad"; msg.textContent = t; return { ok: false }; }
+}
+function saveEdit(force) {
+  var v = readEdit(), x = info(editIso), r = x.r || {};
+  var locked = v.type === "vacation" || v.type === "sick" || v.type === "holiday";
+  if (locked && (r.in || r.out || typeof r.lunch === "number") && !force) {
+    editConfirm = { text: "מעבר ל" + TYPES[v.type].label + " ימחק את השעות וסכום הארוחה של היום.", yes: "המשך", act: "save" };
+    var keep = v; renderSheet(); restoreEdit(keep); return;
+  }
+  var res = validateEdit(v, force);
+  if (!res.ok) { if (res.confirm) { editConfirm = Object.assign(res.confirm, { act: "save" }); var k = v; renderSheet(); restoreEdit(k); } return; }
+  var patch = locked ? { type: v.type, in: "", out: "", overnight: false, lunch: "", lunchNote: "", note: v.note }
+    : { type: v.type || (v.in ? "office" : ""), in: v.in, out: v.out, overnight: v.overnight && !!v.in && !!v.out, lunch: v.lunch === "" ? "" : Math.round(Number(v.lunch) * 100) / 100, lunchNote: v.lunchNote, note: v.note };
+  setRec(editIso, patch);
+  closeEdit(); render(); toast("נשמר");
+}
+function restoreEdit(v) {
+  $("#e-type").value = v.type; $("#e-in").value = v.in; $("#e-out").value = v.out; $("#e-night").checked = v.overnight;
+  $("#e-lunch").value = v.lunch; $("#e-lnote").value = v.lunchNote; $("#e-note").value = v.note; syncEditFields();
+}
+
+/* ---------- actions ---------- */
+function setTodayType(type) {
+  var t = todayIso(), x = info(t), r = x.r || {};
+  if ((type === "vacation" || type === "sick") && (r.in || r.out || typeof r.lunch === "number")) { openEdit(t); $("#e-type").value = type; syncEditFields(); saveEdit(false); return; }
+  setRec(t, { type: type });
+  render();
+}
+function punch(which) {
+  var t = todayIso(), x = info(t), r = x.r || {}, now = nowHM();
+  if (which === "in") setRec(t, { type: x.type === "home" ? "home" : "office", in: now });
+  else {
+    var overnight = hmToMin(now) < hmToMin(r.in);
+    setRec(t, { out: now, overnight: overnight });
+    var m = minutesOf(rec(t));
+    render();
+    toast("נרשמה יציאה ב-" + now + (m != null && m > 16 * 60 ? ". יום ארוך מ-16 שעות, כדאי לבדוק את שעת הכניסה." : ""));
+    return;
+  }
+  render(); toast("נרשמה כניסה ב-" + now);
+}
+function saveLunch() {
+  var v = $("#lunch-today").value, note = $("#lunchnote-today").value.trim();
+  if (v !== "") { var n = Number(v); if (isNaN(n) || n < 0 || n > LUNCH_MAX) { $("#lunch-hint").innerHTML = lunchHint(v); return; } }
+  var t = todayIso(), x = info(t);
+  setRec(t, { type: x.type && x.type !== "rest" ? x.type : "office", lunch: v === "" ? "" : Math.round(Number(v) * 100) / 100, lunchNote: note });
+  render(); toast(v === "" ? "הסכום נמחק" : "נשמר: " + fmtMoney(Number(v)));
+}
+function applyRange() {
+  var a = $("#r-from").value, b = $("#r-to").value, type = $("#r-type").value;
+  if (!a || !b) { toast("בחרו תאריך התחלה וסיום."); return; }
+  if (b < a) { var tmp = a; a = b; b = tmp; }
+  var n = 0, iso = a, guard = 0;
+  while (iso <= b && guard++ < 400) {
+    var x = info(iso);
+    if (x.work && !(x.hol && x.hol.kind === "holiday")) {
+      if (type === "home") setRec(iso, { type: "home" });
+      else setRec(iso, { type: type, in: "", out: "", overnight: false, lunch: "", lunchNote: "" });
+      n++;
+    }
+    iso = addDays(iso, 1);
+  }
+  render(); toast(n ? "סומנו " + n + " ימים כ" + TYPES[type].label : "אין ימי עבודה בטווח שנבחר");
+}
+function doExport(share) {
+  var ym = exportYm, blob;
+  try { blob = buildXlsx(ym); } catch (e) { toast("יצירת הקובץ נכשלה: " + e.message); return; }
+  var name = xlsxName(ym);
+  if (share) {
+    var file = new File([blob], name, { type: blob.type });
+    var data = { files: [file], title: name };
+    if (!(navigator.canShare && navigator.canShare(data))) { toast("המכשיר לא מאפשר לשתף קובץ אקסל ישירות. לחצו \"ייצוא לאקסל\" ושלחו את הקובץ שהורד."); return; }
+    navigator.share(data).then(function () { S.meta.exported[ym] = new Date().toISOString(); save(); render(); toast("הקובץ שותף"); }, function (e) {
+      if (e && e.name === "AbortError") return;
+      toast("השיתוף נכשל. לחצו \"ייצוא לאקסל\" ושלחו את הקובץ שהורד.");
+    });
+    return;
+  }
+  offerFile(name, blob).then(function (st) {
+    if (st === "declined") return;
+    S.meta.exported[ym] = new Date().toISOString(); save(); render(); toast("הקובץ " + name + " מוכן");
+  }, function () { toast("ההורדה לא זמינה כאן. פתחו את האפליקציה בדפדפן כדי לייצא."); });
+}
+function doBackup() {
+  var data = JSON.stringify({ app: "attendance", v: 1, exportedAt: new Date().toISOString(), days: S.days, settings: S.settings }, null, 1);
+  var name = "גיבוי_נוכחות_" + todayIso() + ".json";
+  offerFile(name, new Blob([data], { type: "application/json" })).then(function (st) {
+    if (st === "declined") return;
+    S.meta.lastBackup = new Date().toISOString(); save(); render(); toast("הגיבוי נשמר");
+  }, function () { toast("ההורדה לא זמינה כאן. פתחו את האפליקציה בדפדפן כדי לגבות."); });
+}
+function readBackup(file) {
+  var fr = new FileReader();
+  fr.onload = function () {
+    try {
+      var o = JSON.parse(fr.result);
+      if (!o || o.app !== "attendance" || typeof o.days !== "object") throw new Error("bad");
+      Object.keys(o.days).forEach(function (k) { if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) throw new Error("bad"); });
+      pendingRestore = { file: file.name, data: o };
+    } catch (e) { pendingRestore = null; toast("הקובץ אינו גיבוי של שעון נוכחות."); }
+    render();
+    var c = $("#b-confirm"); if (c) c.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+  fr.onerror = function () { toast("לא ניתן לקרוא את הקובץ."); };
+  fr.readAsText(file);
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", function (e) {
+  var el = e.target.closest("button, [data-view]");
+  if (!el) { if (e.target.id === "scrim") requestClose(); return; }
+  var id = el.id;
+  if (el.hasAttribute("data-view")) { view = el.getAttribute("data-view"); if (view === "month") monthCursor = monthCursor || ymOf(todayIso()); render(); window.scrollTo(0, 0); return; }
+  if (el.hasAttribute("data-edit")) { openEdit(el.getAttribute("data-edit")); return; }
+  if (el.hasAttribute("data-settype")) { setTodayType(el.getAttribute("data-settype")); return; }
+  if (el.hasAttribute("data-goexport")) { exportYm = el.getAttribute("data-goexport"); view = "export"; render(); window.scrollTo(0, 0); return; }
+  switch (id) {
+    case "punch-in": punch("in"); break;
+    case "punch-out": punch("out"); break;
+    case "lunch-save": saveLunch(); break;
+    case "quick-backup": doBackup(); break;
+    case "m-prev": case "m-next":
+      var d = parseIso(monthCursor + "-01"); d.setMonth(d.getMonth() + (id === "m-prev" ? -1 : 1)); monthCursor = isoOf(d).slice(0, 7); render(); break;
+    case "r-apply": applyRange(); break;
+    case "x-go": doExport(false); break;
+    case "x-share": doExport(true); break;
+    case "b-go": doBackup(); break;
+    case "b-pick": var fi = $("#b-file"); fi.value = ""; fi.click(); break;
+    case "b-confirm":
+      if (pendingRestore) { var o = pendingRestore.data; S = normalize({ days: o.days, settings: o.settings, meta: S.meta }); save(); pendingRestore = null; view = "today"; render(); window.scrollTo(0, 0); toast("הנתונים שוחזרו: " + Object.keys(S.days).length + " ימים"); }
+      break;
+    case "b-cancel": pendingRestore = null; render(); break;
+    case "s-save":
+      var wd = []; document.querySelectorAll("[data-wd]").forEach(function (c) { if (c.checked) wd.push(+c.getAttribute("data-wd")); });
+      var std = Number($("#s-std").value), cap = Number($("#s-cap").value);
+      if (isNaN(cap) || cap < 0 || cap > LUNCH_MAX) { toast("תקרה לא תקינה"); break; }
+      S.settings = { name: $("#s-name").value.trim(), workDays: wd, stdHours: isNaN(std) ? 9 : std, lunchCap: cap };
+      save(); toast("ההגדרות נשמרו"); break;
+    case "e-close": requestClose(); break;
+    case "e-save": saveEdit(false); break;
+    case "e-yes":
+      if (editConfirm && editConfirm.act === "discard") { closeEdit(); break; }
+      var keep = readEdit(); editConfirm = null; restoreEdit(keep); saveEdit(true); break;
+    case "e-no": var k2 = readEdit(); editConfirm = null; renderSheet(); restoreEdit(k2); break;
+    case "e-clear": delete S.days[editIso]; save(); closeEdit(); render(); toast("היום נוקה"); break;
+  }
+});
+document.addEventListener("change", function (e) {
+  if (e.target.id === "e-type") syncEditFields();
+  if (e.target.id === "x-month" && e.target.value) { exportYm = e.target.value; render(); }
+  if (e.target.id === "b-file" && e.target.files && e.target.files[0]) readBackup(e.target.files[0]);
+});
+document.addEventListener("input", function (e) {
+  if (e.target.id === "lunch-today") $("#lunch-hint").innerHTML = lunchHint(e.target.value);
+});
+document.addEventListener("keydown", function (e) { if (e.key === "Escape" && editIso) requestClose(); });
+
+setInterval(function () { if (view === "today" && !editIso && document.activeElement && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) render(); }, 30000);
+document.addEventListener("visibilitychange", function () { if (!document.hidden && view === "today" && !editIso) render(); });
+
+if ("serviceWorker" in navigator && location.protocol === "https:" && !inViewer) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+}
+window.__attendance = { buildXlsx: buildXlsx, holidayOf: holidayOf, state: function () { return S; } };
+render();
+})();
+</script>
+
+</body>
+</html>
