@@ -207,6 +207,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .ringc .k { font-size: 13px; color: var(--muted); }
 .ringc .big { font-size: 54px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
 .ringc .left { font-size: 12px; font-weight: 700; color: var(--accent); }
+.ringc .left.done { color: var(--t-home); }
 .stamp { background: var(--sunk); border: 0; border-radius: 16px; padding: 10px 14px; }
 .stamp.filled { background: var(--sunk); border: 0; }
 .stamp .label { font-weight: 400; color: var(--muted); font-size: 12px; }
@@ -714,7 +715,7 @@ function viewToday() {
     html += '<section class="card" aria-label="כרטיס נוכחות">' +
       '<div class="ringwrap"><svg viewBox="0 0 210 210" role="img" aria-label="' + Math.round(frac * 100) + '% מתקן יומי"><circle class="bgc" cx="105" cy="105" r="92" fill="none" stroke-width="14"></circle>' +
       (shown > 0 ? '<circle class="fgc' + (shown >= std ? " over" : "") + '" cx="105" cy="105" r="92" fill="none" stroke-width="14" stroke-dasharray="' + CIRC + '" stroke-dashoffset="' + (CIRC * (1 - frac)).toFixed(1) + '"></circle>' : "") +
-      '</svg><div class="ringc"><span class="k">' + (r.out ? 'סה"כ היום' : r.in ? "מאז הכניסה" : "עוד לא נכנסת") + '</span><span class="big num">' + fmtMin(shown || 0) + '</span><span class="left">' + leftTxt + "</span></div></div>" +
+      '</svg><div class="ringc"><span class="k">' + (r.out ? 'סה"כ היום' : r.in ? "מאז הכניסה" : "עוד לא נכנסת") + '</span><span class="big num">' + fmtMin(shown || 0) + '</span><span class="left' + (r.in && shown >= std ? " done" : "") + '">' + leftTxt + "</span></div></div>" +
       '<div class="stamps">' +
         '<div class="stamp' + (r.in ? " filled" : "") + '"><span class="label">כניסה</span><span class="t num' + (r.in ? "" : " empty") + '">' + (r.in || "--:--") + "</span></div>" +
         '<div class="stamp' + (r.out ? " filled" : "") + '"><span class="label">יציאה</span><span class="t num' + (r.out ? "" : " empty") + '">' + (r.out || "--:--") + "</span></div>" +
