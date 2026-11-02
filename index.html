@@ -250,6 +250,10 @@ input[type="text"], input[type="number"], input[type="time"], input[type="date"]
 .tabs button[aria-current="page"] { background: var(--accent); color: var(--accent-ink); font-weight: 800; }
 .toast { background: var(--ink); color: var(--bg); bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
 .app { padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)); }
+/* 16px minimum on every field: iOS Safari zooms the page when a focused field is smaller and does not zoom back */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+input, select, textarea { font-size: 16px !important; }
+button, input, select, textarea, label { touch-action: manipulation; }
 </style>
 
 <div class="app" id="app" lang="he"></div>
@@ -944,6 +948,7 @@ function punch(which) {
 }
 function saveLunch() {
   var v = $("#lunch-today").value, note = $("#lunchnote-today").value.trim();
+  try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}
   if (v !== "") { var n = Number(v); if (isNaN(n) || n < 0 || n > LUNCH_MAX) { $("#lunch-hint").innerHTML = lunchHint(v); return; } }
   var t = todayIso(), x = info(t);
   setRec(t, { type: x.type && x.type !== "rest" ? x.type : "office", lunch: v === "" ? "" : Math.round(Number(v) * 100) / 100, lunchNote: note });
@@ -1060,7 +1065,10 @@ document.addEventListener("change", function (e) {
 document.addEventListener("input", function (e) {
   if (e.target.id === "lunch-today") $("#lunch-hint").innerHTML = lunchHint(e.target.value);
 });
-document.addEventListener("keydown", function (e) { if (e.key === "Escape" && editIso) requestClose(); });
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape" && editIso) requestClose();
+  if (e.key === "Enter" && (e.target.id === "lunch-today" || e.target.id === "lunchnote-today")) { e.preventDefault(); saveLunch(); }
+});
 
 // Unsaved text in today's lunch fields must survive the periodic refresh.
 function todayLunchDirty() {
