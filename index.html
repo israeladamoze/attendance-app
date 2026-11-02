@@ -254,6 +254,9 @@ input[type="text"], input[type="number"], input[type="time"], input[type="date"]
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 input, select, textarea { font-size: 16px !important; }
 button, input, select, textarea, label { touch-action: manipulation; }
+/* month arrows: drawn, so RTL text mirroring cannot flip them */
+.monthnav .iconbtn { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--ink); }
+.monthnav .iconbtn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 </style>
 
 <div class="app" id="app" lang="he"></div>
@@ -753,7 +756,7 @@ function lunchHint(v) {
 function viewMonth() {
   var ym = monthCursor, p = ym.split("-"), y = +p[0], m = +p[1] - 1, n = daysInMonth(y, m), t = todayIso();
   var html = '<header class="head"><h1>לוח חודשי</h1></header>';
-  html += '<section class="card"><div class="monthnav"><button class="iconbtn" type="button" id="m-prev" aria-label="החודש הקודם">›</button><h2>' + monthTitle(ym) + '</h2><button class="iconbtn" type="button" id="m-next" aria-label="החודש הבא">‹</button></div>';
+  html += '<section class="card"><div class="monthnav"><button class="iconbtn" type="button" id="m-prev" aria-label="החודש הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button><h2>' + monthTitle(ym) + '</h2><button class="iconbtn" type="button" id="m-next" aria-label="החודש הבא"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button></div>';
   html += '<div class="cal" role="grid" aria-label="ימי החודש">' + DAYS_SHORT.map(function (d) { return '<span class="dow">' + d + "</span>"; }).join("");
   var startDow = new Date(y, m, 1).getDay();
   for (var b = 0; b < startDow; b++) html += '<span class="day blank" aria-hidden="true"></span>';
