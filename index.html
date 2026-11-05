@@ -855,10 +855,12 @@ function openEdit(iso) { editIso = iso; editConfirm = null; renderSheet(); editI
 function closeEdit() { editIso = null; editInitial = null; $("#sheet-root").innerHTML = ""; document.body.classList.remove("locked"); }
 function editDirty() { return !!(editIso && $("#e-type") && editInitial !== JSON.stringify(readEdit())); }
 function requestClose() {
-  if (!editDirty()) { closeEdit(); return; }
+  /* a second tap on X (or Esc/backdrop) while the question is showing means "close anyway" */
+  if (!editDirty() || (editConfirm && editConfirm.act === "discard")) { closeEdit(); return; }
   var keep = readEdit();
-  editConfirm = { text: "יש שינויים שלא נשמרו. לסגור בלי לשמור?", yes: "סגירה בלי שמירה", act: "discard" };
+  editConfirm = { text: "יש שינויים שלא נשמרו. לסגור בלי לשמור? (לחיצה נוספת על ✕ סוגרת)", yes: "סגירה בלי שמירה", act: "discard" };
   renderSheet(); restoreEdit(keep);
+  var y = $("#e-yes"); if (y) { try { y.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {} }
 }
 function renderSheet() {
   if (!editIso) return;
