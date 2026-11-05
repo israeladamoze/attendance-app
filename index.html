@@ -165,7 +165,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 
 /* tab bar */
 .tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
-.tabs .in { direction: rtl; max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.tabs .in { direction: rtl; max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .tabs button { border: 0; background: none; border-radius: 10px; padding: 6px 4px; cursor: pointer; display: grid; justify-items: center; gap: 2px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
 .tabs button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tabs button[aria-current="page"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
@@ -257,6 +257,23 @@ button, input, select, textarea, label { touch-action: manipulation; }
 /* month arrows: drawn, so RTL text mirroring cannot flip them */
 .monthnav .iconbtn { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--ink); }
 .monthnav .iconbtn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+/* salary page */
+.paytotal { display: grid; gap: 2px; }
+.paybig { font-size: 30px; font-weight: 700; line-height: 1.2; text-align: right; }
+.paynav { display: inline-flex; align-items: center; justify-content: center; padding: 0; width: 48px; height: 48px; color: var(--ink); }
+.scrollx { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; border: 1px solid var(--line); border-radius: 10px; }
+.hilan { border-collapse: collapse; font-size: 13px; min-width: 660px; width: 100%; }
+.hilan th, .hilan td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+.hilan th { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--sunk); }
+.hilan th:first-child, .hilan td:first-child { position: sticky; right: 0; background: var(--surface); z-index: 1; border-left: 1px solid var(--line); }
+.hilan th:first-child { background: var(--sunk); }
+.hilan tbody tr { cursor: pointer; }
+.hilan tr.rest td { color: var(--muted); background: var(--sunk); }
+.hilan td.o:not(:empty) { color: var(--accent); font-weight: 600; }
+.hilan tr.lack td.l { color: var(--warn); font-weight: 600; }
+.hilan td.note { text-align: right; white-space: normal; min-width: 110px; font-size: 12px; color: var(--muted); }
+.hilan tr.tot td { font-weight: 700; border-top: 2px solid var(--line); border-bottom: 0; background: var(--sunk); }
+.tabs button { font-size: 11.5px; }
 </style>
 
 <div class="app" id="app" lang="he"></div>
@@ -265,6 +282,7 @@ button, input, select, textarea, label { touch-action: manipulation; }
     <button type="button" data-view="today" id="tab-today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>היום</button>
     <button type="button" data-view="month" id="tab-month"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>חודש</button>
     <button type="button" data-view="export" id="tab-export"><svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>ייצוא וגיבוי</button>
+    <button type="button" data-view="salary" id="tab-salary"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>שכר</button>
     <button type="button" data-view="settings" id="tab-settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>הגדרות</button>
   </div>
 </nav>
@@ -305,7 +323,12 @@ function normalize(o) {
       name: typeof s.name === "string" ? s.name : "",
       workDays: Array.isArray(s.workDays) ? s.workDays : [0, 1, 2, 3, 4],
       stdHours: typeof s.stdHours === "number" ? s.stdHours : 9,
-      lunchCap: typeof s.lunchCap === "number" ? s.lunchCap : 50
+      lunchCap: typeof s.lunchCap === "number" ? s.lunchCap : 50,
+      salary: typeof s.salary === "number" ? s.salary : 16500,
+      monthHours: typeof s.monthHours === "number" ? s.monthHours : 182,
+      stdLong: typeof s.stdLong === "number" ? s.stdLong : 8.6,
+      stdShort: typeof s.stdShort === "number" ? s.stdShort : 7.6,
+      shortDay: typeof s.shortDay === "number" ? s.shortDay : 4
     },
     meta: { lastBackup: m.lastBackup || null, exported: m.exported || {} }
   };
@@ -638,6 +661,7 @@ function render() {
   if (view === "today") app.innerHTML = viewToday();
   else if (view === "month") app.innerHTML = viewMonth();
   else if (view === "export") app.innerHTML = viewExport();
+  else if (view === "salary") app.innerHTML = viewSalary();
   else app.innerHTML = viewSettings();
   document.querySelectorAll(".tabs button").forEach(function (b) {
     if (b.getAttribute("data-view") === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
@@ -705,7 +729,7 @@ function viewToday() {
     html += '<section class="card"><p class="muted" style="margin:0">' + (x.type === "holiday" ? "ביום חג אין דיווח שעות. אם עבדתם, בחרו משרד או בית." : "ביום " + TYPES[x.type].label + " אין דיווח שעות וארוחה.") + "</p></section>";
   } else if (showWork) {
     var running = r.in && !r.out ? (function () { var m = hmToMin(nowHM()) - hmToMin(r.in); if (m < 0) m += 1440; return m; })() : null;
-    var shown = r.out ? x.mins : running != null ? running : 0, std = Math.max(1, Math.round((S.settings.stdHours || 9) * 60));
+    var shown = r.out ? x.mins : running != null ? running : 0, std = Math.max(1, dayStdMin(todayIso()) || Math.round((S.settings.stdLong || S.settings.stdHours || 8.6) * 60));
     var frac = Math.min(1, (shown || 0) / std), CIRC = 578.05;
     var leftTxt = !r.in ? "תקן: " + fmtMin(std) + " שעות" : shown >= std ? "השלמת את התקן" : "נותרו " + fmtMin(std - shown) + " לתקן";
     html += '<section class="card" aria-label="כרטיס נוכחות">' +
@@ -826,13 +850,102 @@ function viewExport() {
 }
 function trow(k, v) { return "<tr><td>" + esc(k) + '</td><td class="num">' + esc(v) + "</td></tr>"; }
 
+
+/* ---------- salary (Israeli overtime rules, computed per day like Hilan) ---------- */
+var payCursor = ymOf(todayIso());
+function dayStdMin(iso) {
+  var x = info(iso), s = S.settings;
+  if (!x.work || (x.hol && x.hol.kind === "holiday")) return 0;
+  return Math.round((dowOf(iso) === s.shortDay ? s.stdShort : s.stdLong) * 60);
+}
+function payDay(iso) {
+  var x = info(iso), std = dayStdMin(iso), m = x.mins, dw = dowOf(iso);
+  var hol = x.hol && x.hol.kind === "holiday";
+  var d = { iso: iso, x: x, std: std, mins: m, reg: 0, o125: 0, o150: 0, lack: 0, notes: [] };
+  if (x.hol) d.notes.push(x.hol.name);
+  if (m == null) {
+    if (x.type === "vacation" || x.type === "sick") d.notes.push(TYPES[x.type].label);   // paid absence: no shortfall
+    else if (x.missingOut) d.notes.push("חסר יציאה");
+    else if (x.unreported) d.notes.push("לא דווח");
+    return d;
+  }
+  if (std === 0) {
+    if (dw === 6 || hol) { d.o150 = m; if (!hol) d.notes.push("שבת"); }           // weekly rest / holiday: 150%
+    else { d.o125 = Math.min(m, 120); d.o150 = m - d.o125; d.notes.push("יום מנוחה"); } // extra day: all overtime
+  } else {
+    d.reg = Math.min(m, std);
+    var over = Math.max(0, m - std);
+    d.o125 = Math.min(over, 120);   // first 2 overtime hours of the day
+    d.o150 = over - d.o125;         // every hour after that
+    d.lack = Math.max(0, std - m);
+  }
+  if (x.type === "home") d.notes.push("מהבית");
+  return d;
+}
+function payMonth(ym) {
+  var p = ym.split("-"), n = daysInMonth(+p[0], +p[1] - 1), s = S.settings;
+  var t = { mins: 0, std: 0, reg: 0, o125: 0, o150: 0, lack: 0 }, days = [];
+  for (var i = 1; i <= n; i++) {
+    var d = payDay(ym + "-" + pad(i));
+    days.push(d);
+    t.mins += d.mins || 0; t.std += d.std; t.reg += d.reg; t.o125 += d.o125; t.o150 += d.o150; t.lack += d.lack;
+  }
+  /* shortfall is offset against overtime, the 125% hours first */
+  var off125 = Math.min(t.lack, t.o125), off150 = Math.min(t.lack - off125, t.o150);
+  var net125 = t.o125 - off125, net150 = t.o150 - off150;
+  var hourly = s.monthHours > 0 ? s.salary / s.monthHours : 0;
+  var pay125 = net125 / 60 * hourly * 1.25, pay150 = net150 / 60 * hourly * 1.5;
+  return { days: days, t: t, off: off125 + off150, uncovered: t.lack - off125 - off150, net125: net125, net150: net150,
+           hourly: hourly, pay125: pay125, pay150: pay150, total: s.salary + pay125 + pay150 };
+}
+function fmtH(m) { return m ? (Math.round(m / 60 * 100) / 100).toFixed(2) : ""; }
+function money(v) { return "₪" + v.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+var CHEV_R = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="pointer-events:none"><path d="M9 6l6 6-6 6"/></svg>';
+var CHEV_L = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="pointer-events:none"><path d="M15 6l-6 6 6 6"/></svg>';
+function viewSalary() {
+  var ym = payCursor, P = payMonth(ym), s = S.settings, t = P.t;
+  var html = '<header class="head"><h1>חישוב שכר</h1></header>';
+  html += '<section class="card"><div class="monthnav"><button class="iconbtn paynav" type="button" id="p-prev" aria-label="החודש הקודם">' + CHEV_R + '</button><h2>' + monthTitle(ym) + '</h2><button class="iconbtn paynav" type="button" id="p-next" aria-label="החודש הבא">' + CHEV_L + "</button></div>" +
+    '<div class="paytotal"><span class="label">ברוטו משוער לחודש</span><span class="paybig num">' + money(P.total) + "</span></div>" +
+    '<table class="tbl"><tbody>' +
+    trow("שכר חודשי", money(s.salary)) +
+    trow("שכר שעה (" + s.salary.toLocaleString("he-IL") + " ÷ " + s.monthHours + ")", money(P.hourly)) +
+    trow("שעות שעבדת / שעות תקן", (fmtH(t.mins) || "0.00") + " / " + (fmtH(t.std) || "0.00")) +
+    trow("שעות נוספות 125%", (fmtH(P.net125) || "0.00") + " · " + money(P.pay125)) +
+    trow("שעות נוספות 150%", (fmtH(P.net150) || "0.00") + " · " + money(P.pay150)) +
+    trow("שעות חוסר (קוזזו מהנוספות)", (fmtH(t.lack) || "0.00") + (P.off ? " · קוזזו " + fmtH(P.off) : "")) +
+    "</tbody></table>" +
+    (P.uncovered ? '<span class="hint warn">' + fmtH(P.uncovered) + " שעות חוסר לא כוסו בשעות נוספות. הן לא מורידות מהשכר בחישוב הזה.</span>" : "") +
+    '<span class="hint">חישוב משוער לפני ניכויים (מס, ביטוח לאומי, פנסיה). שעות נוספות לפי יום: מעבר לתקן היומי, שעתיים ראשונות 125% והשאר 150%; עבודה בשבת ובחג 150%. ימי מחלה מחושבים כיום מלא.</span>' +
+    "</section>";
+  html += '<section class="card"><span class="label">דוח נוכחות יומי</span><div class="scrollx"><table class="hilan"><thead><tr>' +
+    ["תאריך", "יום", "כניסה", "יציאה", 'סה"כ', "תקן", "100%", "125%", "150%", "חוסר", "הערות"].map(function (h) { return "<th>" + h + "</th>"; }).join("") +
+    "</tr></thead><tbody>";
+  P.days.forEach(function (d) {
+    var r = d.x.r || {}, rest = !d.std && d.mins == null, dd = parseIso(d.iso);
+    html += '<tr class="' + (rest ? "rest" : "") + (d.lack ? " lack" : "") + '" data-edit="' + d.iso + '">' +
+      '<td class="num">' + pad(dd.getDate()) + "/" + pad(dd.getMonth() + 1) + "</td><td>" + DAYS_SHORT[dd.getDay()] + "</td>" +
+      '<td class="num">' + (r.in || "") + '</td><td class="num">' + (r.out || "") + "</td>" +
+      '<td class="num">' + fmtH(d.mins) + '</td><td class="num">' + fmtH(d.std) + "</td>" +
+      '<td class="num">' + fmtH(d.reg) + '</td><td class="num o">' + fmtH(d.o125) + '</td><td class="num o">' + fmtH(d.o150) + "</td>" +
+      '<td class="num l">' + fmtH(d.lack) + '</td><td class="note">' + esc(d.notes.join(" · ")) + "</td></tr>";
+  });
+  html += '<tr class="tot"><td colspan="4">סה"כ</td><td class="num">' + fmtH(t.mins) + '</td><td class="num">' + fmtH(t.std) + '</td><td class="num">' + fmtH(t.reg) +
+    '</td><td class="num">' + fmtH(t.o125) + '</td><td class="num">' + fmtH(t.o150) + '</td><td class="num">' + fmtH(t.lack) + "</td><td></td></tr>";
+  html += '</tbody></table></div><span class="hint">גללו לצדדים לראות את כל העמודות. לחיצה על שורה פותחת עריכה של היום.</span></section>';
+  return html;
+}
 function viewSettings() {
   var s = S.settings;
   return '<header class="head"><h1>הגדרות</h1></header>' +
     '<section class="card"><label class="field"><span>שם העובד (מופיע בקובץ)</span><input type="text" id="s-name" value="' + esc(s.name) + '" maxlength="60"></label>' +
     '<div class="field"><span>ימי עבודה</span><div class="wd">' + DAYS.map(function (d, i) {
       return '<label><input type="checkbox" data-wd="' + i + '" id="wd-' + i + '"' + (s.workDays.indexOf(i) !== -1 ? " checked" : "") + ">" + d + "</label>"; }).join("") + "</div></div>" +
-    '<div class="grid2"><label class="field"><span>שעות תקן ליום</span><input type="number" id="s-std" min="1" max="24" step="0.5" value="' + s.stdHours + '"></label>' +
+    '<div class="grid2"><label class="field"><span>שכר חודשי (ברוטו)</span><span class="money"><input type="number" id="s-salary" min="0" step="100" value="' + s.salary + '"></span></label>' +
+    '<label class="field"><span>שעות חודשיות לשכר שעה</span><input type="number" id="s-mhours" min="1" max="400" step="1" value="' + s.monthHours + '"></label></div>' +
+    '<div class="grid2"><label class="field"><span>תקן יומי, א׳–ד׳ (שעות)</span><input type="number" id="s-std" min="1" max="24" step="0.1" value="' + s.stdLong + '"></label>' +
+    '<label class="field"><span>תקן ביום חמישי (שעות)</span><input type="number" id="s-short" min="0" max="24" step="0.1" value="' + s.stdShort + '"></label></div>' +
+    '<div class="grid2">' +
     '<label class="field"><span>תקרת סבסוד ארוחה</span><span class="money"><input type="number" id="s-cap" min="0" max="' + LUNCH_MAX + '" step="1" value="' + s.lunchCap + '"></span></label></div>' +
     '<div class="row"><button class="btn primary" type="button" id="s-save">שמירת הגדרות</button></div></section>' +
     '<section class="card"><span class="label">על האפליקציה</span><p class="muted" style="margin:0">הנתונים נשמרים רק במכשיר הזה, ללא שרת וללא מיקום. חגי ישראל מחושבים אוטומטית לפי הלוח העברי. כדי לא לאבד נתונים, הורידו גיבוי מדי שבוע ממסך הייצוא.</p></section>';
@@ -1009,7 +1122,7 @@ function readBackup(file) {
 
 /* ---------- events ---------- */
 document.addEventListener("click", function (e) {
-  var el = e.target.closest("button, [data-view]");
+  var el = e.target.closest("button, [data-view], tr[data-edit]");
   if (!el) { if (e.target.id === "scrim") requestClose(); return; }
   var id = el.id;
   if (el.hasAttribute("data-view")) { view = el.getAttribute("data-view"); if (view === "month") monthCursor = monthCursor || ymOf(todayIso()); render(); window.scrollTo(0, 0); return; }
@@ -1025,6 +1138,8 @@ document.addEventListener("click", function (e) {
     case "m-prev": case "m-next":
       var d = parseIso(monthCursor + "-01"); d.setMonth(d.getMonth() + (id === "m-prev" ? -1 : 1)); monthCursor = isoOf(d).slice(0, 7); render(); break;
     case "r-apply": applyRange(); break;
+    case "p-prev": case "p-next":
+      var pd = parseIso(payCursor + "-01"); pd.setMonth(pd.getMonth() + (id === "p-prev" ? -1 : 1)); payCursor = isoOf(pd).slice(0, 7); render(); break;
     case "x-go": doExport(false); break;
     case "x-share": doExport(true); break;
     case "b-go": doBackup(); break;
@@ -1035,9 +1150,12 @@ document.addEventListener("click", function (e) {
     case "b-cancel": pendingRestore = null; render(); break;
     case "s-save":
       var wd = []; document.querySelectorAll("[data-wd]").forEach(function (c) { if (c.checked) wd.push(+c.getAttribute("data-wd")); });
-      var std = Number($("#s-std").value), cap = Number($("#s-cap").value);
+      var std = Number($("#s-std").value), cap = Number($("#s-cap").value), shortH = Number($("#s-short").value),
+          sal = Number($("#s-salary").value), mh = Number($("#s-mhours").value);
+      if (isNaN(sal) || sal < 0 || isNaN(mh) || mh <= 0 || isNaN(std) || std <= 0 || isNaN(shortH) || shortH < 0) { toast("בדקו את שדות השכר והתקן"); break; }
       if (isNaN(cap) || cap < 0 || cap > LUNCH_MAX) { toast("תקרה לא תקינה"); break; }
-      S.settings = { name: $("#s-name").value.trim(), workDays: wd, stdHours: isNaN(std) ? 9 : std, lunchCap: cap };
+      S.settings = { name: $("#s-name").value.trim(), workDays: wd, stdHours: std, lunchCap: cap,
+                     salary: sal, monthHours: mh, stdLong: std, stdShort: shortH, shortDay: 4 };
       save(); toast("ההגדרות נשמרו"); break;
     case "e-close": requestClose(); break;
     case "e-save": saveEdit(false); break;
@@ -1077,7 +1195,7 @@ document.addEventListener("visibilitychange", function () { if (!document.hidden
 if ("serviceWorker" in navigator && location.protocol === "https:" && !inViewer) {
   window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
 }
-window.__attendance = { buildXlsx: buildXlsx, holidayOf: holidayOf, state: function () { return S; } };
+window.__attendance = { payMonth: payMonth, buildXlsx: buildXlsx, holidayOf: holidayOf, state: function () { return S; } };
 render();
 })();
 </script>
