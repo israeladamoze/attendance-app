@@ -508,26 +508,27 @@ function colName(i) { return String.fromCharCode(65 + i); }
 function serialOf(iso) { var p = iso.split("-"); return Date.UTC(+p[0], +p[1] - 1, +p[2]) / 864e5 + 25569; }
 
 function buildXlsx(ym) {
-  var p = ym.split("-"), y = +p[0], m = +p[1] - 1, n = daysInMonth(y, m), cap = S.settings.lunchCap;
-  // styles registry
-  var FILLS = { none: 0, rest: 2, vacation: 3, sick: 4, home: 5, holiday: 6, alert: 7, header: 8, sum: 9 };
+  /* Layout matches the "דוח שעות" table the user sends by email:
+     תאריך | יום | התחלה | סיום | בשעות | ש"ע | סה"כ | הערות | ארוחות
+     one row per reported day, header in blue-grey, "ארוחות" header in yellow. */
+  var p = ym.split("-"), y = +p[0], m = +p[1] - 1, n = daysInMonth(y, m);
+  var fontXml = '<font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font>';
   var fillXml = '<fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
-    ["EEF0F0", "DCE8F8", "FBE2CB", "DDF0DE", "ECE2F7", "FFF0B0", "0E6A61", "E8F1EF"].map(function (rgb) {
-      return '<fill><patternFill patternType="solid"><fgColor rgb="FF' + rgb + '"/><bgColor indexed="64"/></patternFill></fill>'; }).join("");
-  // fonts: 0 normal, 1 bold, 2 title, 3 header white bold, 4 muted
-  var fontXml = '<font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font><font><b/><sz val="15"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><sz val="10"/><color rgb="FF5A6A67"/><name val="Arial"/></font>';
-  var NUM = { gen: 0, date: 164, time: 165, hours: 166, money: 167, int: 1 };
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFB8CCE4"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/><bgColor indexed="64"/></patternFill></fill>';
+  var FILL = { none: 0, head: 2, yellow: 3 };
+  var NUM = { gen: 0, date: 164, time: 165, dur: 167 };
   var xfs = [], xfKey = {};
-  function st(font, fill, num, border, center) {
-    var k = [font, fill, num, border, center ? 1 : 0].join("|");
+  function st(font, fill, num, center) {
+    var k = [font, fill, num, center ? 1 : 0].join("|");
     if (xfKey[k] != null) return xfKey[k];
-    xfs.push('<xf numFmtId="' + num + '" fontId="' + font + '" fillId="' + fill + '" borderId="' + border + '" xfId="0"' +
-      (num ? ' applyNumberFormat="1"' : "") + (font ? ' applyFont="1"' : "") + (fill ? ' applyFill="1"' : "") + (border ? ' applyBorder="1"' : "") +
+    xfs.push('<xf numFmtId="' + num + '" fontId="' + font + '" fillId="' + fill + '" borderId="1" xfId="0" applyBorder="1"' +
+      (num ? ' applyNumberFormat="1"' : "") + (font ? ' applyFont="1"' : "") + (fill ? ' applyFill="1"' : "") +
       ' applyAlignment="1"><alignment horizontal="' + (center ? "center" : "right") + '" vertical="center" readingOrder="2"/></xf>');
     xfKey[k] = xfs.length - 1; return xfKey[k];
   }
-  st(0, 0, 0, 0, false); // default style 0
-  var rows = [], merges = [];
+  xfs.push('<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'); // style 0: plain, no border
+  var rows = [];
   function cell(ref, v, s) {
     if (v == null || v === "") return '<c r="' + ref + '" s="' + s + '"/>';
     if (typeof v === "number") return '<c r="' + ref + '" s="' + s + '"><v>' + v + "</v></c>";
@@ -539,89 +540,77 @@ function buildXlsx(ym) {
   }
   function row(r, cells, ht) { rows.push('<row r="' + r + '"' + (ht ? ' ht="' + ht + '" customHeight="1"' : "") + ">" + cells.join("") + "</row>"); }
 
-  var name = S.settings.name || "";
-  row(1, [cell("A1", "דוח נוכחות" + (name ? " – " + name : ""), st(2, 0, 0, 0))], 24);
-  merges.push("A1:H1");
-  var gen = new Date();
-  row(2, [cell("A2", "חודש: " + monthTitle(ym) + "  ·  הופק: " + shortDate(isoOf(gen)) + "  ·  תקרת סבסוד ארוחה: " + cap + " ₪", st(4, 0, 0, 0))]);
-  merges.push("A2:H2");
-  var heads = ["תאריך", "יום", "סוג יום", "כניסה", "יציאה", 'סה"כ שעות', "ארוחת צהריים (₪)", "הערות"];
-  var hs = st(3, FILLS.header, 0, 1, true);
-  row(4, heads.map(function (h, i) { return cell(colName(i) + "4", h, hs); }), 20);
+  var heads = ["תאריך", "יום", "התחלה", "סיום", "בשעות", 'ש"ע', 'סה"כ', "הערות", "ארוחות"];
+  row(1, heads.map(function (h, i) { return cell(colName(i) + "1", h, st(1, i === 8 ? FILL.yellow : FILL.head, 0, true)); }), 20);
 
-  var first = 5, last = first + n - 1;
+  var R = 2, NOTE = { home: "מהבית", vacation: "חופשה", sick: "מחלה", holiday: "חג" };
+  var sDate = st(0, 0, NUM.date, true), sTxt = st(0, 0, 0, true), sTime = st(0, 0, NUM.time, true),
+      sDec = st(0, 0, NUM.gen, true), sNote = st(0, 0, 0, true), sMeal = st(0, 0, NUM.gen, true);
   for (var d = 1; d <= n; d++) {
-    var iso = ym + "-" + pad(d), x = info(iso), r = x.r || {}, R = first + d - 1;
-    var fill = x.missingOut ? FILLS.alert : (x.type && FILLS[x.type] ? FILLS[x.type] : FILLS.none);
+    var iso = ym + "-" + pad(d), x = info(iso), r = x.r || {};
+    var worked = !!(r.in || r.out || typeof r.lunch === "number");
+    var leave = x.r && (x.type === "vacation" || x.type === "sick");
+    if (!worked && !leave) continue;          // only reported days, like the original report
     var notes = [];
-    if (x.hol) notes.push(x.hol.name);
+    if (NOTE[x.type] && (x.type !== "holiday" || worked)) notes.push(NOTE[x.type]);
+    if (x.hol && x.hol.kind === "holiday" && worked && x.type !== "holiday") notes.push(x.hol.name);
     if (x.missingOut) notes.push("חסר יציאה");
-    if (x.unreported) notes.push("לא דווח");
-    if (r.overnight) notes.push("משמרת שחוצה חצות");
-    if (r.lunchNote) notes.push(r.lunchNote);
+    if (r.overnight) notes.push("משמרת לילה");
     if (r.note) notes.push(r.note);
-    var inM = hmToMin(r.in), outM = hmToMin(r.out);
-    var hoursV = x.mins != null ? x.mins / 1440 : "";
+    if (r.lunchNote) notes.push(r.lunchNote);
+    var inM = hmToMin(r.in), outM = hmToMin(r.out), mins = x.mins;
     row(R, [
-      cell("A" + R, serialOf(iso), st(0, fill, NUM.date, 1, true)),
-      cell("B" + R, DAYS[dowOf(iso)], st(0, fill, 0, 1, true)),
-      cell("C" + R, x.type ? TYPES[x.type].xl : "", st(0, fill, 0, 1, true)),
-      cell("D" + R, inM != null ? inM / 1440 : "", st(0, fill, NUM.time, 1, true)),
-      cell("E" + R, outM != null ? outM / 1440 : "", st(0, fill, NUM.time, 1, true)),
-      cell("F" + R, { f: 'IF(OR(D' + R + '="",E' + R + '=""),"",MOD(E' + R + "-D" + R + ",1))", v: hoursV }, st(0, fill, NUM.hours, 1, true)),
-      cell("G" + R, typeof r.lunch === "number" ? r.lunch : "", st(0, fill, NUM.money, 1, true)),
-      cell("H" + R, notes.join(" · "), st(0, fill, 0, 1, false))
+      cell("A" + R, serialOf(iso), sDate),
+      cell("B" + R, DAYS[dowOf(iso)], sTxt),
+      cell("C" + R, inM != null ? inM / 1440 : "", sTime),
+      cell("D" + R, outM != null ? outM / 1440 : "", sTime),
+      cell("E" + R, "", sTxt),
+      cell("F" + R, { f: 'IF(OR(C' + R + '="",D' + R + '=""),"",MOD(D' + R + "-C" + R + ",1))", v: mins != null ? mins / 1440 : "" }, sTime),
+      cell("G" + R, { f: 'IF(F' + R + '="","",ROUND(F' + R + "*24,1))", v: mins != null ? Math.round(mins / 6) / 10 : "" }, sDec),
+      cell("H" + R, notes.join(" · "), sNote),
+      cell("I" + R, typeof r.lunch === "number" ? r.lunch : "", sMeal)
+    ]);
+    R++;
+  }
+  var last = R - 1, sm = monthSummary(ym), T = R;
+  var sBold = st(1, 0, 0, true);
+  if (last >= 2) {
+    row(T, [
+      cell("A" + T, 'סה"כ', sBold), cell("B" + T, "", sBold), cell("C" + T, "", sBold), cell("D" + T, "", sBold), cell("E" + T, "", sBold),
+      cell("F" + T, { f: "SUM(F2:F" + last + ")", v: sm.mins / 1440 }, st(1, 0, NUM.dur, true)),
+      cell("G" + T, { f: "SUM(G2:G" + last + ")", v: "" }, st(1, 0, NUM.gen, true)),
+      cell("H" + T, "", sBold),
+      cell("I" + T, { f: "SUM(I2:I" + last + ")", v: sm.lunch }, st(1, 0, NUM.gen, true))
     ]);
   }
-  var sm = monthSummary(ym), R0 = last + 2, rng = function (c) { return c + first + ":" + c + last; };
-  var lab = st(1, FILLS.sum, 0, 1, false);
-  var summary = [
-    ['סה"כ שעות בחודש', { f: "SUM(" + rng("F") + ")", v: sm.mins / 1440 }, NUM.hours],
-    ['סה"כ ארוחות צהריים', { f: "SUM(" + rng("G") + ")", v: sm.lunch }, NUM.money],
-    ["ימים עם ארוחה", { f: "COUNT(" + rng("G") + ")", v: sm.lunchDays }, NUM.int],
-    ['סה"כ לזיכוי (עד ' + cap + " ₪ ליום)", { f: "SUMPRODUCT((" + rng("G") + ">" + cap + ")*" + cap + "+(" + rng("G") + "<=" + cap + ")*" + rng("G") + ")", v: sm.credit }, NUM.money],
-    ["ימי משרד", { f: 'COUNTIF(' + rng("C") + ',"משרד")', v: sm.office }, NUM.int],
-    ["ימי עבודה מהבית", { f: 'COUNTIF(' + rng("C") + ',"בית")', v: sm.home }, NUM.int],
-    ["ימי חופשה", { f: 'COUNTIF(' + rng("C") + ',"חופשה")', v: sm.vacation }, NUM.int],
-    ["ימי מחלה", { f: 'COUNTIF(' + rng("C") + ',"מחלה")', v: sm.sick }, NUM.int],
-    ["ימי חג", { f: 'COUNTIF(' + rng("C") + ',"חג")', v: sm.holiday }, NUM.int]
-  ];
-  summary.forEach(function (s, i) {
-    var R = R0 + i;
-    row(R, [cell("A" + R, s[0], lab), cell("B" + R, "", lab), cell("C" + R, "", lab), cell("D" + R, s[1], st(1, FILLS.sum, s[2], 1, true))]);
-    merges.push("A" + R + ":C" + R);
-  });
-  var lastRow = R0 + summary.length - 1;
-
-  var widths = [13, 9, 10, 9, 9, 11, 17, 34];
+  var lastRow = Math.max(T, 1);
+  var widths = [11, 9, 9, 9, 9, 9, 9, 30, 10];
   var sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
     '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
-    '<dimension ref="A1:H' + lastRow + '"/>' +
-    '<sheetViews><sheetView rightToLeft="1" workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<dimension ref="A1:I' + lastRow + '"/>' +
+    '<sheetViews><sheetView rightToLeft="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
     '<sheetFormatPr defaultRowHeight="16"/>' +
     "<cols>" + widths.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join("") + "</cols>" +
     "<sheetData>" + rows.join("") + "</sheetData>" +
-    '<mergeCells count="' + merges.length + '">' + merges.map(function (r) { return '<mergeCell ref="' + r + '"/>'; }).join("") + "</mergeCells>" +
     '<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>' +
     '<pageSetup orientation="portrait" fitToWidth="1" fitToHeight="0"/>' +
     "</worksheet>";
   var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<numFmts count="4"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="hh:mm"/><numFmt numFmtId="166" formatCode="[h]:mm"/><numFmt numFmtId="167" formatCode="&quot;₪&quot;#,##0.00"/></numFmts>' +
-    '<fonts count="5">' + fontXml + "</fonts>" +
-    '<fills count="10">' + fillXml + "</fills>" +
+    '<numFmts count="3"><numFmt numFmtId="164" formatCode="dd-mm-yy"/><numFmt numFmtId="165" formatCode="hh:mm"/><numFmt numFmtId="167" formatCode="[h]:mm"/></numFmts>' +
+    '<fonts count="2">' + fontXml + "</fonts>" +
+    '<fills count="4">' + fillXml + "</fills>" +
     '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
-    '<border><left style="thin"><color rgb="FFD3DCDA"/></left><right style="thin"><color rgb="FFD3DCDA"/></right><top style="thin"><color rgb="FFD3DCDA"/></top><bottom style="thin"><color rgb="FFD3DCDA"/></bottom><diagonal/></border></borders>' +
+    '<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border></borders>' +
     '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
     '<cellXfs count="' + xfs.length + '">' + xfs.join("") + "</cellXfs>" +
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
     "</styleSheet>";
-  var sheetName = (MONTHS[m] + " " + y);
+  var sheetName = "דוח שעות " + pad(m + 1) + "-" + y;
   var workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
     '<bookViews><workbookView/></bookViews><sheets><sheet name="' + xmlEsc(sheetName) + '" sheetId="1" r:id="rId1"/></sheets>' +
-    '<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">\'' + xmlEsc(sheetName) + "'!$4:$4</definedName></definedNames>" +
     '<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>';
   var files = [
     { name: "[Content_Types].xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
@@ -635,7 +624,7 @@ function buildXlsx(ym) {
 }
 function xlsxName(ym) {
   var p = ym.split("-"), nm = (S.settings.name || "").trim().replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "_");
-  return "נוכחות_" + (nm ? nm + "_" : "") + p[1] + "-" + p[0] + ".xlsx";
+  return "דוח_שעות_" + (nm ? nm + "_" : "") + p[1] + "-" + p[0] + ".xlsx";
 }
 
 /* ---------- views ---------- */
