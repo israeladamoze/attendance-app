@@ -274,6 +274,11 @@ button, input, select, textarea, label { touch-action: manipulation; }
 .hilan td.note { text-align: right; white-space: normal; min-width: 110px; font-size: 12px; color: var(--muted); }
 .hilan tr.tot td { font-weight: 700; border-top: 2px solid var(--line); border-bottom: 0; background: var(--sunk); }
 .tabs button { font-size: 11.5px; }
+.hilan td.x:not(:empty) { color: var(--accent); font-weight: 600; }
+.hilan td.b { font-weight: 600; direction: ltr; }
+.hilan td.b.pos { color: var(--t-home); }
+.hilan td.b.neg { color: var(--warn); }
+.hilan { min-width: 780px; }
 </style>
 
 <div class="app" id="app" lang="he"></div>
@@ -898,6 +903,15 @@ function payMonth(ym) {
   return { days: days, t: t, off: off125 + off150, uncovered: t.lack - off125 - off150, net125: net125, net150: net150,
            hourly: hourly, pay125: pay125, pay150: pay150, total: s.salary + pay125 + pay150 };
 }
+function fmtBal(m) {
+  if (!m) return "0.00";
+  return (m > 0 ? "+" : "−") + (Math.round(Math.abs(m) / 60 * 100) / 100).toFixed(2);
+}
+function balanceText(P, ym) {
+  var today = todayIso(), ex = 0, lk = 0;
+  P.days.forEach(function (d) { if (d.iso <= today) { ex += d.o125 + d.o150; lk += d.lack; } });
+  return "עודף " + (fmtH(ex) || "0.00") + " · חוסר " + (fmtH(lk) || "0.00") + " · מאזן " + fmtBal(ex - lk);
+}
 function fmtH(m) { return m ? (Math.round(m / 60 * 100) / 100).toFixed(2) : ""; }
 function money(v) { return "₪" + v.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 var CHEV_R = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="pointer-events:none"><path d="M9 6l6 6-6 6"/></svg>';
@@ -914,24 +928,31 @@ function viewSalary() {
     trow("שעות נוספות 125%", (fmtH(P.net125) || "0.00") + " · " + money(P.pay125)) +
     trow("שעות נוספות 150%", (fmtH(P.net150) || "0.00") + " · " + money(P.pay150)) +
     trow("שעות חוסר (קוזזו מהנוספות)", (fmtH(t.lack) || "0.00") + (P.off ? " · קוזזו " + fmtH(P.off) : "")) +
+    trow(ym === ymOf(todayIso()) ? "עודף / חוסר נכון להיום" : "עודף / חוסר בחודש", balanceText(P, ym)) +
     "</tbody></table>" +
     (P.uncovered ? '<span class="hint warn">' + fmtH(P.uncovered) + " שעות חוסר לא כוסו בשעות נוספות. הן לא מורידות מהשכר בחישוב הזה.</span>" : "") +
     '<span class="hint">חישוב משוער לפני ניכויים (מס, ביטוח לאומי, פנסיה). שעות נוספות לפי יום: מעבר לתקן היומי, שעתיים ראשונות 125% והשאר 150%; עבודה בשבת ובחג 150%. ימי מחלה מחושבים כיום מלא.</span>' +
     "</section>";
   html += '<section class="card"><span class="label">דוח נוכחות יומי</span><div class="scrollx"><table class="hilan"><thead><tr>' +
-    ["תאריך", "יום", "כניסה", "יציאה", 'סה"כ', "תקן", "100%", "125%", "150%", "חוסר", "הערות"].map(function (h) { return "<th>" + h + "</th>"; }).join("") +
+    ["תאריך", "יום", "כניסה", "יציאה", 'סה"כ', "תקן", "100%", "125%", "150%", "עודף", "חוסר", "מאזן מצטבר", "הערות"].map(function (h) { return "<th>" + h + "</th>"; }).join("") +
     "</tr></thead><tbody>";
+  var bal = 0, today = todayIso();
   P.days.forEach(function (d) {
     var r = d.x.r || {}, rest = !d.std && d.mins == null, dd = parseIso(d.iso);
+    var extra = d.o125 + d.o150, past = d.iso <= today;
+    if (past) bal += extra - d.lack;
     html += '<tr class="' + (rest ? "rest" : "") + (d.lack ? " lack" : "") + '" data-edit="' + d.iso + '">' +
       '<td class="num">' + pad(dd.getDate()) + "/" + pad(dd.getMonth() + 1) + "</td><td>" + DAYS_SHORT[dd.getDay()] + "</td>" +
       '<td class="num">' + (r.in || "") + '</td><td class="num">' + (r.out || "") + "</td>" +
       '<td class="num">' + fmtH(d.mins) + '</td><td class="num">' + fmtH(d.std) + "</td>" +
       '<td class="num">' + fmtH(d.reg) + '</td><td class="num o">' + fmtH(d.o125) + '</td><td class="num o">' + fmtH(d.o150) + "</td>" +
-      '<td class="num l">' + fmtH(d.lack) + '</td><td class="note">' + esc(d.notes.join(" · ")) + "</td></tr>";
+      '<td class="num x">' + fmtH(extra) + '</td><td class="num l">' + fmtH(d.lack) + "</td>" +
+      '<td class="num b ' + (bal < 0 ? "neg" : bal > 0 ? "pos" : "") + '">' + (past && (d.std || d.mins != null || bal) ? fmtBal(bal) : "") + "</td>" +
+      '<td class="note">' + esc(d.notes.join(" · ")) + "</td></tr>";
   });
   html += '<tr class="tot"><td colspan="4">סה"כ</td><td class="num">' + fmtH(t.mins) + '</td><td class="num">' + fmtH(t.std) + '</td><td class="num">' + fmtH(t.reg) +
-    '</td><td class="num">' + fmtH(t.o125) + '</td><td class="num">' + fmtH(t.o150) + '</td><td class="num">' + fmtH(t.lack) + "</td><td></td></tr>";
+    '</td><td class="num">' + fmtH(t.o125) + '</td><td class="num">' + fmtH(t.o150) + '</td><td class="num">' + fmtH(t.o125 + t.o150) + '</td><td class="num">' + fmtH(t.lack) +
+    '</td><td class="num b ' + (bal < 0 ? "neg" : bal > 0 ? "pos" : "") + '">' + fmtBal(bal) + "</td><td></td></tr>";
   html += '</tbody></table></div><span class="hint">גללו לצדדים לראות את כל העמודות. לחיצה על שורה פותחת עריכה של היום.</span></section>';
   return html;
 }
